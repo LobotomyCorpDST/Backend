@@ -1,5 +1,8 @@
 package com.devsop.project.apartmentinvoice.entity;
 
+import java.math.BigDecimal;
+
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
@@ -11,9 +14,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
 public class Room {
-  @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
   private Integer number;
@@ -21,4 +26,9 @@ public class Room {
 
   @ManyToOne
   private Tenant tenant;
+
+  @Column(precision = 12, scale = 2)
+  private BigDecimal commonFeeBaht;
+  @Column(precision = 12, scale = 2)
+  private BigDecimal garbageFeeBaht;
 }

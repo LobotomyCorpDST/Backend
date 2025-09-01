@@ -18,9 +18,11 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 @Entity
-@Getter @Setter @NoArgsConstructor @AllArgsConstructor
+@Getter @Setter
+@NoArgsConstructor @AllArgsConstructor
 public class Invoice {
-  @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
+  @Id
+  @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
 
   @ManyToOne(optional = false) @NotNull
@@ -31,11 +33,13 @@ public class Invoice {
 
   @Column(nullable = false)
   private Integer billingYear;
+
   @Column(nullable = false)
   private Integer billingMonth;
 
   @Column(nullable = false)
   private LocalDate issueDate;
+
   @Column(nullable = false)
   private LocalDate dueDate;
 
@@ -44,20 +48,30 @@ public class Invoice {
 
   @Column(precision = 12, scale = 2)
   private BigDecimal electricityUnits;
+
   @Column(precision = 12, scale = 2)
   private BigDecimal electricityRate;
+
   @Column(precision = 12, scale = 2)
   private BigDecimal electricityBaht;
 
   @Column(precision = 12, scale = 2)
   private BigDecimal waterUnits;
+
   @Column(precision = 12, scale = 2)
   private BigDecimal waterRate;
+
   @Column(precision = 12, scale = 2)
   private BigDecimal waterBaht;
 
   @Column(precision = 12, scale = 2)
   private BigDecimal otherBaht;
+
+  @Column(precision = 12, scale = 2)
+  private BigDecimal commonFeeBaht;
+
+  @Column(precision = 12, scale = 2)
+  private BigDecimal garbageFeeBaht;
 
   @Column(precision = 12, scale = 2)
   private BigDecimal totalBaht;
