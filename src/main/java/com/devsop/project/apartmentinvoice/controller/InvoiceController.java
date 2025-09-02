@@ -5,127 +5,236 @@ import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
+import org.springframework.stereotype.Controller;
 import org.springframework.ui.Model;
+import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.ResponseBody;
 
+import com.devsop.project.apartmentinvoice.dto.CreateInvoiceRequest;
 import com.devsop.project.apartmentinvoice.entity.Invoice;
+import com.devsop.project.apartmentinvoice.entity.Lease;
+import com.devsop.project.apartmentinvoice.entity.Maintenance;
+import com.devsop.project.apartmentinvoice.entity.Maintenance.Status;
 import com.devsop.project.apartmentinvoice.entity.Room;
+import com.devsop.project.apartmentinvoice.entity.Tenant;
 import com.devsop.project.apartmentinvoice.repository.InvoiceRepository;
+import com.devsop.project.apartmentinvoice.repository.LeaseRepository;
+import com.devsop.project.apartmentinvoice.repository.MaintenanceRepository;
 import com.devsop.project.apartmentinvoice.repository.RoomRepository;
 import com.devsop.project.apartmentinvoice.service.PdfService;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 
-@RestController
+@Controller
 @RequestMapping("/api/invoices")
 @RequiredArgsConstructor
 public class InvoiceController {
 
   private final InvoiceRepository repo;
   private final RoomRepository roomRepo;
+  private final LeaseRepository leaseRepo;
+  private final MaintenanceRepository maintenanceRepo;   // << เพิ่ม
   private final PdfService pdfService;
 
-  // -------- Queries --------
+  // ---------- JSON APIs ----------
 
+  @ResponseBody
   @GetMapping
   public List<Invoice> all() {
     return repo.findAll();
   }
 
+  /** ดึงใบแจ้งหนี้รายใบ (สำหรับหน้า detail) */
+  @ResponseBody
+  @GetMapping("/{id}")
+  public Invoice getOne(@PathVariable Long id) {
+    return repo.findById(id).orElseThrow();
+  }
+
+  @ResponseBody
   @GetMapping("/by-room/{roomId}")
   public List<Invoice> byRoom(@PathVariable Long roomId) {
     return repo.findByRoom_Id(roomId);
   }
 
+  @ResponseBody
   @GetMapping("/by-tenant/{tenantId}")
   public List<Invoice> byTenant(@PathVariable Long tenantId) {
     return repo.findByTenant_Id(tenantId);
   }
 
+  @ResponseBody
   @GetMapping("/month/{year}/{month}")
   public List<Invoice> byMonth(@PathVariable Integer year, @PathVariable Integer month) {
     return repo.findByBillingYearAndBillingMonth(year, month);
   }
 
+  /** ประวัติใบแจ้งหนี้ของห้อง (ไว้ให้หน้า Room Detail) */
+  @ResponseBody
+  @GetMapping("/history/by-room/{roomId}")
+  public List<Invoice> historyByRoom(@PathVariable Long roomId) {
+    return repo.findByRoom_Id(roomId);
+  }
+
   /**
    * สร้างใบแจ้งหนี้
-   * - เลือกคิดค่าส่วนกลาง/ค่าขยะ ด้วย query params: includeCommonFee / includeGarbageFee (default=false)
-   * - ถ้า body ส่ง commonFeeBaht/garbageFeeBaht มาแล้ว จะใช้ค่าที่ส่งมาเป็นอันดับแรก
-   * - ถ้ายังเป็น null แต่ include=true จะดึงค่า default จาก Room
-   * - ถ้ายังไม่ระบุ issueDate/billingYear/billingMonth จะเติมให้ตามวันที่ปัจจุบัน
+   * - includeCommonFee/includeGarbageFee (default=false)
+   * - ไม่ส่ง rentBaht => ดึงจาก Lease ACTIVE ณ วัน issueDate
+   * - ไม่ส่ง tenantId => ดึงจาก Lease เช่นกัน
+   * - ถ้าส่ง tenantId มาแต่ไม่ตรงกับ Lease ที่ active => 400
+   * - รวมค่า maintenance ของเดือนนั้น (เฉพาะสถานะ COMPLETED)
    */
+  @ResponseBody
   @PostMapping
   public Invoice create(
-      @Valid @RequestBody Invoice in,
+      @Valid @RequestBody CreateInvoiceRequest req,
       @RequestParam(name = "includeCommonFee", defaultValue = "false") boolean includeCommonFee,
       @RequestParam(name = "includeGarbageFee", defaultValue = "false") boolean includeGarbageFee
   ) {
+    // ===== วันที่พื้นฐาน =====
+    LocalDate issueDate = (req.getIssueDate() != null) ? req.getIssueDate() : LocalDate.now();
+    LocalDate dueDate   = (req.getDueDate()   != null) ? req.getDueDate()   : issueDate.plusDays(7);
+    Integer  year       = (req.getBillingYear()  != null) ? req.getBillingYear()  : issueDate.getYear();
+    Integer  month      = (req.getBillingMonth() != null) ? req.getBillingMonth() : issueDate.getMonthValue();
 
-    // วันออกใบแจ้งหนี้ & ครบกำหนด
-    if (in.getIssueDate() == null) in.setIssueDate(LocalDate.now());
-    if (in.getDueDate() == null)   in.setDueDate(in.getIssueDate().plusDays(7));
+    // ===== ห้อง (ต้องมี roomId) =====
+    Room room = roomRepo.findById(req.getRoomId()).orElseThrow();
 
-    // ตั้งค่าเดือน/ปี ถ้าไม่ได้ส่งมา
-    if (in.getBillingYear() == null)  in.setBillingYear(in.getIssueDate().getYear());
-    if (in.getBillingMonth() == null) in.setBillingMonth(in.getIssueDate().getMonthValue());
+    // ===== Lease ที่ ACTIVE ณ วัน issueDate =====
+    Lease lease = leaseRepo.findActiveLeaseByRoomOnDate(room.getId(), issueDate).orElse(null);
 
-    // โหลด Room จาก DB เพื่อใช้ค่า default และป้องกัน room จาก JSON ที่ไม่ผูก persistence
-    if (in.getRoom() == null || in.getRoom().getId() == null) {
-      throw new IllegalArgumentException("room.id is required");
+    // ===== เลือก tenant ตามกติกา =====
+    Tenant tenantFromLease = (lease != null) ? lease.getTenant() : null;
+    Tenant tenant;
+    if (req.getTenantId() == null) {
+      tenant = tenantFromLease;
+      if (tenant == null) {
+        throw new IllegalArgumentException("No active lease found and tenantId not provided.");
+      }
+    } else {
+      // ถ้ามี lease แล้ว tenantId ต้องตรงกับใน lease
+      if (tenantFromLease != null && !req.getTenantId().equals(tenantFromLease.getId())) {
+        throw new IllegalArgumentException("Tenant does not match active lease for the room/date.");
+      }
+      // อ้างอิงด้วย id โดยไม่ต้องโหลด entity เต็ม
+      tenant = new Tenant();
+      tenant.setId(req.getTenantId());
     }
-    Room room = roomRepo.findById(in.getRoom().getId()).orElseThrow();
+
+    // ===== ประกอบ Invoice =====
+    Invoice in = new Invoice();
     in.setRoom(room);
+    in.setTenant(tenant);
+    in.setIssueDate(issueDate);
+    in.setDueDate(dueDate);
+    in.setBillingYear(year);
+    in.setBillingMonth(month);
 
-    // คำนวณไฟฟ้า/น้ำ หากยังไม่ได้คำนวณ
-    if (in.getElectricityBaht() == null && in.getElectricityUnits() != null && in.getElectricityRate() != null) {
-      in.setElectricityBaht(in.getElectricityUnits().multiply(in.getElectricityRate()));
+    // ค่าเช่า: request > lease.monthlyRent > 0
+    BigDecimal rent = req.getRentBaht();
+    if (rent == null && lease != null) rent = lease.getMonthlyRent();
+    if (rent == null) rent = BigDecimal.ZERO;
+    in.setRentBaht(rent);
+
+    // ไฟฟ้า
+    BigDecimal elecBaht = req.getElectricityBaht();
+    if (elecBaht == null && req.getElectricityUnits() != null && req.getElectricityRate() != null) {
+      elecBaht = req.getElectricityUnits().multiply(req.getElectricityRate());
     }
-    if (in.getWaterBaht() == null && in.getWaterUnits() != null && in.getWaterRate() != null) {
-      in.setWaterBaht(in.getWaterUnits().multiply(in.getWaterRate()));
+    in.setElectricityUnits(req.getElectricityUnits());
+    in.setElectricityRate(req.getElectricityRate());
+    in.setElectricityBaht(elecBaht);
+
+    // น้ำ
+    BigDecimal waterBaht = req.getWaterBaht();
+    if (waterBaht == null && req.getWaterUnits() != null && req.getWaterRate() != null) {
+      waterBaht = req.getWaterUnits().multiply(req.getWaterRate());
     }
+    in.setWaterUnits(req.getWaterUnits());
+    in.setWaterRate(req.getWaterRate());
+    in.setWaterBaht(waterBaht);
 
-    // default 0 สำหรับฟิลด์ยอดต่าง ๆ ที่อาจเป็น null
-    if (in.getRentBaht() == null)  in.setRentBaht(BigDecimal.ZERO);
-    if (in.getOtherBaht() == null) in.setOtherBaht(BigDecimal.ZERO);
+    // อื่น ๆ
+    in.setOtherBaht(req.getOtherBaht() != null ? req.getOtherBaht() : BigDecimal.ZERO);
 
-    // ค่าส่วนกลาง/ค่าขยะ: ถ้า client ไม่ส่งมา และ include=true >> ใช้ค่า default จากห้อง
-    if (in.getCommonFeeBaht() == null && includeCommonFee) {
-      in.setCommonFeeBaht(room.getCommonFeeBaht()); // อาจเป็น null ถ้าไม่ตั้งในห้อง
-    }
-    if (in.getGarbageFeeBaht() == null && includeGarbageFee) {
-      in.setGarbageFeeBaht(room.getGarbageFeeBaht());
-    }
+    // ค่าส่วนกลาง/ค่าขยะ (ค่า default จากห้องใช้เฉพาะตอน include=true และยังไม่ได้ส่งมา)
+    BigDecimal commonFee  = req.getCommonFeeBaht();
+    BigDecimal garbageFee = req.getGarbageFeeBaht();
+    if (commonFee == null && includeCommonFee)   commonFee  = room.getCommonFeeBaht();
+    if (garbageFee == null && includeGarbageFee) garbageFee = room.getGarbageFeeBaht();
+    if (commonFee  == null) commonFee  = BigDecimal.ZERO;
+    if (garbageFee == null) garbageFee = BigDecimal.ZERO;
+    in.setCommonFeeBaht(commonFee);
+    in.setGarbageFeeBaht(garbageFee);
 
-    // ถ้ายัง null อยู่ ให้เป็น 0 เพื่อคำนวณ total ง่าย
-    if (in.getCommonFeeBaht() == null)  in.setCommonFeeBaht(BigDecimal.ZERO);
-    if (in.getGarbageFeeBaht() == null) in.setGarbageFeeBaht(BigDecimal.ZERO);
+    // ===== รวมค่า Maintenance ของ "เดือนบิล" นี้ (สถานะ COMPLETED เท่านั้น) =====
+    LocalDate firstDay = LocalDate.of(year, month, 1);
+    LocalDate lastDay  = firstDay.withDayOfMonth(firstDay.lengthOfMonth());
 
-    // รวมยอดทั้งหมด
+    List<Maintenance> items = maintenanceRepo
+        .findByRoom_IdAndStatusAndCompletedDateBetween(room.getId(), Status.COMPLETED, firstDay, lastDay);
+
+    BigDecimal maintenanceSum = items.stream()
+        .map(Maintenance::getCostBaht)
+        .filter(c -> c != null)
+        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+    in.setMaintenanceBaht(maintenanceSum);
+
+    // รวมยอด (กัน null)
     BigDecimal total = BigDecimal.ZERO;
-    if (in.getRentBaht()        != null) total = total.add(in.getRentBaht());
-    if (in.getElectricityBaht() != null) total = total.add(in.getElectricityBaht());
-    if (in.getWaterBaht()       != null) total = total.add(in.getWaterBaht());
-    if (in.getOtherBaht()       != null) total = total.add(in.getOtherBaht());
-    if (in.getCommonFeeBaht()   != null) total = total.add(in.getCommonFeeBaht());
-    if (in.getGarbageFeeBaht()  != null) total = total.add(in.getGarbageFeeBaht());
-
+    total = total.add(sum(in.getRentBaht()));
+    total = total.add(sum(in.getElectricityBaht()));
+    total = total.add(sum(in.getWaterBaht()));
+    total = total.add(sum(in.getOtherBaht()));
+    total = total.add(sum(in.getCommonFeeBaht()));
+    total = total.add(sum(in.getGarbageFeeBaht()));
+    total = total.add(sum(in.getMaintenanceBaht()));   // << บวก Maintenance
     in.setTotalBaht(total);
 
     return repo.save(in);
   }
 
-  // -------- Render views --------
+  // ---------- Mark as PAID / UNPAID ----------
 
+  /** Mark เป็น PAID (ผู้ใช้ต้องส่ง paidDate เอง) */
+  @ResponseBody
+  @PostMapping("/{id}/mark-paid")
+  public Invoice markPaid(
+      @PathVariable Long id,
+      @RequestParam("paidDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidDate
+  ) {
+    Invoice inv = repo.findById(id).orElseThrow();
+    inv.setStatus(Invoice.Status.PAID);
+    inv.setPaidDate(paidDate);
+    return repo.save(inv);
+  }
+
+  /** ย้อนสถานะกลับเป็น PENDING และล้าง paidDate ออก */
+  @ResponseBody
+  @PatchMapping("/{id}/unpaid")
+  public Invoice markUnpaid(@PathVariable Long id) {
+    Invoice inv = repo.findById(id).orElseThrow();
+    inv.setStatus(Invoice.Status.PENDING);
+    inv.setPaidDate(null);
+    return repo.save(inv);
+  }
+
+  // ---------- View / PDF ----------
+
+  /** เรนเดอร์ Thymeleaf: templates/invoice.html */
   @GetMapping("/{id}/print")
   public String print(@PathVariable Long id, Model model) {
     Invoice invoice = repo.findById(id).orElseThrow();
@@ -133,6 +242,7 @@ public class InvoiceController {
     return "invoice";
   }
 
+  /** ส่ง PDF (binary) */
   @GetMapping("/{id}/pdf")
   public ResponseEntity<byte[]> exportPdf(@PathVariable Long id) {
     Invoice invoice = repo.findById(id).orElseThrow();
@@ -142,5 +252,20 @@ public class InvoiceController {
         .contentType(MediaType.APPLICATION_PDF)
         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=invoice-" + id + ".pdf")
         .body(pdf);
+  }
+
+  // ---------- Error handling ----------
+
+  /** ให้ IllegalArgumentException กลับเป็น 400 พร้อมข้อความสั้น ๆ */
+  @ResponseBody
+  @ExceptionHandler(IllegalArgumentException.class)
+  public ResponseEntity<Map<String, String>> handleIllegalArg(IllegalArgumentException ex) {
+    return ResponseEntity.badRequest().body(Map.of("error", ex.getMessage()));
+  }
+
+  // ---------- Helpers ----------
+
+  private static BigDecimal sum(BigDecimal v) {
+    return v != null ? v : BigDecimal.ZERO;
   }
 }

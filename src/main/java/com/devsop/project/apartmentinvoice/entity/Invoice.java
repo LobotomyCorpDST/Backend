@@ -21,6 +21,7 @@ import lombok.Setter;
 @Getter @Setter
 @NoArgsConstructor @AllArgsConstructor
 public class Invoice {
+
   @Id
   @GeneratedValue(strategy = GenerationType.IDENTITY)
   private Long id;
@@ -42,6 +43,10 @@ public class Invoice {
 
   @Column(nullable = false)
   private LocalDate dueDate;
+
+  /** วันที่ผู้เช่าชำระเงินจริง ต้องส่งเข้ามาเอง */
+  @Column
+  private LocalDate paidDate;
 
   @Column(precision = 12, scale = 2)
   private BigDecimal rentBaht;
@@ -72,6 +77,9 @@ public class Invoice {
 
   @Column(precision = 12, scale = 2)
   private BigDecimal garbageFeeBaht;
+
+  @Column(precision = 12, scale = 2)
+  private BigDecimal maintenanceBaht;
 
   @Column(precision = 12, scale = 2)
   private BigDecimal totalBaht;
