@@ -1,110 +1,167 @@
 <!DOCTYPE html>
-<html lang="en" xmlns="http://www.w3.org/1999/xhtml">
+<html lang="th" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8" />
   <title>Apartment Invoice</title>
 
   <style>
-    body { font-family: Arial, sans-serif; margin: 20px; }
-    h2 { text-align: center; margin-bottom: 28px; }
+    @page { size: A4; margin: 16mm; }
+    body { font-family: Arial, sans-serif; margin: 16px; font-size: 14px; }
+    h2 { text-align: center; margin-bottom: 20px; }
 
     p { margin: 4px 0; }
     .label { font-weight: bold; }
 
-    table { width: 100%; border-collapse: collapse; margin-top: 16px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
+    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
     th { background-color: #f2f2f2; }
 
     .total { font-weight: bold; text-align: right; }
-    .status { margin-top: 16px; font-weight: bold; }
+    .status { margin-top: 12px; font-weight: bold; }
+
+    .muted { color:#666; font-size: 12px; }
+    .right { text-align: right; }
+
+    .no-print { margin-bottom: 12px; }
+    @media print { .no-print { display: none; } }
   </style>
 </head>
 <body>
-  <h2>Apartment Invoice</h2>
+  <div class="no-print">
+    <button onclick="window.print()">พิมพ์</button>
+  </div>
 
-  <p><span class="label">Room:</span>
+  <h2>
+    Apartment Invoice
+    <span th:if="${invoice.status?.name() == 'PAID'}"
+          style="margin-left:12px;padding:2px 8px;border:2px solid #090;color:#090;border-radius:6px;font-size:12px;">
+      PAID
+    </span>
+  </h2>
+
+  <p>
+    <span class="label">Room:</span>
     <span th:text="${invoice.room.number}">101</span>
   </p>
 
-  <p><span class="label">Tenant:</span>
+  <p>
+    <span class="label">Tenant:</span>
     <span th:text="${invoice.tenant.name}">Jane Smith</span>
   </p>
 
-  <p><span class="label">Phone:</span>
-    <span th:text="${invoice.tenant.phone}">081-222-3333</span>
+  <p>
+    <span class="label">Phone:</span>
+    <span th:text="${#strings.defaultString(invoice.tenant.phone, '-')}">081-222-3333</span>
   </p>
 
-  <p><span class="label">Billing Month:</span>
+  <p>
+    <span class="label">Billing Month:</span>
     <span th:text="${invoice.billingMonth}">9</span>/<span th:text="${invoice.billingYear}">2025</span>
   </p>
 
-  <p><span class="label">Issue Date:</span>
-    <span th:text="${invoice.issueDate}">2025-09-02</span>
+  <p>
+    <span class="label">Issue Date:</span>
+    <span th:text="${#temporals.format(invoice.issueDate,'dd/MM/yyyy')}">02/09/2025</span>
   </p>
 
-  <p><span class="label">Due Date:</span>
-    <span th:text="${invoice.dueDate}">2025-09-09</span>
+  <p>
+    <span class="label">Due Date:</span>
+    <span th:text="${#temporals.format(invoice.dueDate,'dd/MM/yyyy')}">09/09/2025</span>
   </p>
 
   <table>
     <thead>
       <tr>
         <th>Description</th>
-        <th>Units</th>
-        <th>Rate</th>
-        <th>Amount (Baht)</th>
+        <th class="right">Units</th>
+        <th class="right">Rate</th>
+        <th class="right">Amount (Baht)</th>
       </tr>
     </thead>
     <tbody>
-      <tr>
+      <!-- Rent -->
+      <tr th:if="${invoice.rentBaht != null}">
         <td>Rent</td>
-        <td>-</td>
-        <td>-</td>
-        <td th:text="${#numbers.formatDecimal(invoice.rentBaht, 1, 'COMMA', 2, 'POINT')}">7000.00</td>
+        <td class="right">-</td>
+        <td class="right">-</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.rentBaht, 1, 'COMMA', 2, 'POINT')}">7000.00</td>
       </tr>
-      <tr>
-        <td>Electricity</td>
-        <td th:text="${#numbers.formatDecimal(invoice.electricityUnits, 1, 'COMMA', 2, 'POINT')}">100.00</td>
-        <td th:text="${#numbers.formatDecimal(invoice.electricityRate, 1, 'COMMA', 2, 'POINT')}">8.00</td>
-        <td th:text="${#numbers.formatDecimal(invoice.electricityBaht, 1, 'COMMA', 2, 'POINT')}">800.00</td>
+
+      <!-- Electricity -->
+      <tr th:if="${invoice.electricityBaht != null}">
+        <td>
+          Electricity
+          <span class="muted"
+                th:if="${invoice.electricityUnits != null and invoice.electricityRate != null}"
+                th:text="'(' + ${invoice.electricityUnits} + ' × ' + ${invoice.electricityRate} + ')'">
+            (100 × 8.00)
+          </span>
+        </td>
+        <td class="right" th:text="${invoice.electricityUnits != null ? invoice.electricityUnits : '-'}">100.00</td>
+        <td class="right" th:text="${invoice.electricityRate  != null ? invoice.electricityRate  : '-'}">8.00</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.electricityBaht, 1, 'COMMA', 2, 'POINT')}">800.00</td>
       </tr>
-      <tr>
-        <td>Water</td>
-        <td th:text="${#numbers.formatDecimal(invoice.waterUnits, 1, 'COMMA', 2, 'POINT')}">3.00</td>
-        <td th:text="${#numbers.formatDecimal(invoice.waterRate, 1, 'COMMA', 2, 'POINT')}">18.00</td>
-        <td th:text="${#numbers.formatDecimal(invoice.waterBaht, 1, 'COMMA', 2, 'POINT')}">54.00</td>
+
+      <!-- Water -->
+      <tr th:if="${invoice.waterBaht != null}">
+        <td>
+          Water
+          <span class="muted"
+                th:if="${invoice.waterUnits != null and invoice.waterRate != null}"
+                th:text="'(' + ${invoice.waterUnits} + ' × ' + ${invoice.waterRate} + ')'">
+            (3 × 18.00)
+          </span>
+        </td>
+        <td class="right" th:text="${invoice.waterUnits != null ? invoice.waterUnits : '-'}">3.00</td>
+        <td class="right" th:text="${invoice.waterRate  != null ? invoice.waterRate  : '-'}">18.00</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.waterBaht, 1, 'COMMA', 2, 'POINT')}">54.00</td>
       </tr>
-      <tr>
+
+      <!-- Other -->
+      <tr th:if="${invoice.otherBaht != null and invoice.otherBaht > 0}">
         <td>Other</td>
-        <td>-</td>
-        <td>-</td>
-        <td th:text="${#numbers.formatDecimal(invoice.otherBaht, 1, 'COMMA', 2, 'POINT')}">50.00</td>
+        <td class="right">-</td>
+        <td class="right">-</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.otherBaht, 1, 'COMMA', 2, 'POINT')}">50.00</td>
       </tr>
-      <!-- ถ้ามีค่าส่วนกลาง -->
+
+      <!-- Common Fee -->
       <tr th:if="${invoice.commonFeeBaht != null and invoice.commonFeeBaht > 0}">
         <td>Common Fee</td>
-        <td>-</td>
-        <td>-</td>
-        <td th:text="${#numbers.formatDecimal(invoice.commonFeeBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+        <td class="right">-</td>
+        <td class="right">-</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.commonFeeBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
       </tr>
-      <!-- ถ้ามีค่าขยะ -->
+
+      <!-- Garbage Fee -->
       <tr th:if="${invoice.garbageFeeBaht != null and invoice.garbageFeeBaht > 0}">
         <td>Garbage Fee</td>
-        <td>-</td>
-        <td>-</td>
-        <td th:text="${#numbers.formatDecimal(invoice.garbageFeeBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+        <td class="right">-</td>
+        <td class="right">-</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.garbageFeeBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+      </tr>
+
+      <!-- Maintenance (รวมของเดือน) -->
+      <tr th:if="${invoice.maintenanceBaht != null and invoice.maintenanceBaht > 0}">
+        <td>Maintenance (monthly total)</td>
+        <td class="right">-</td>
+        <td class="right">-</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.maintenanceBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
       </tr>
     </tbody>
     <tfoot>
       <tr>
         <td colspan="3" class="total">Total</td>
-        <td th:text="${#numbers.formatDecimal(invoice.totalBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.totalBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
       </tr>
     </tfoot>
   </table>
 
   <p class="status">
     Status: <span th:text="${invoice.status}">PENDING</span>
+    <span th:if="${invoice.paidDate != null}">
+      • Paid on <span th:text="${#temporals.format(invoice.paidDate,'dd/MM/yyyy')}">05/09/2025</span>
+    </span>
   </p>
 </body>
 </html>

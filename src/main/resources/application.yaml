@@ -25,6 +25,8 @@ spring:
     console.enabled: true
   flyway:
     enabled: false
+  thymeleaf:
+    cache: false   # <== ปิด cache ตอน dev
 server:
   port: 8080
 
@@ -46,6 +48,8 @@ spring:
       hibernate.format_sql: true
   flyway:
     enabled: true
+  thymeleaf:
+    cache: false   # <== ปิด cache ไว้ก่อน (ถ้า deploy จริง อาจเปลี่ยนเป็น true เพื่อ performance)
 server:
   port: 8080
 
@@ -68,5 +72,7 @@ spring:
       hibernate.format_sql: true
   flyway:
     enabled: false
+  thymeleaf:
+    cache: false   # <== ปิด cache เวลา dev/test
 server:
   port: 8080

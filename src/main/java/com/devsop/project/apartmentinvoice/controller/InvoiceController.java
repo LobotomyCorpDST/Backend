@@ -7,6 +7,7 @@ import java.util.Map;
 
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Controller;
@@ -20,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.devsop.project.apartmentinvoice.dto.CreateInvoiceRequest;
 import com.devsop.project.apartmentinvoice.entity.Invoice;
@@ -45,7 +47,7 @@ public class InvoiceController {
   private final InvoiceRepository repo;
   private final RoomRepository roomRepo;
   private final LeaseRepository leaseRepo;
-  private final MaintenanceRepository maintenanceRepo;   // << เพิ่ม
+  private final MaintenanceRepository maintenanceRepo;
   private final PdfService pdfService;
 
   // ---------- JSON APIs ----------
@@ -60,7 +62,8 @@ public class InvoiceController {
   @ResponseBody
   @GetMapping("/{id}")
   public Invoice getOne(@PathVariable Long id) {
-    return repo.findById(id).orElseThrow();
+    return repo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
   }
 
   @ResponseBody
@@ -90,11 +93,6 @@ public class InvoiceController {
 
   /**
    * สร้างใบแจ้งหนี้
-   * - includeCommonFee/includeGarbageFee (default=false)
-   * - ไม่ส่ง rentBaht => ดึงจาก Lease ACTIVE ณ วัน issueDate
-   * - ไม่ส่ง tenantId => ดึงจาก Lease เช่นกัน
-   * - ถ้าส่ง tenantId มาแต่ไม่ตรงกับ Lease ที่ active => 400
-   * - รวมค่า maintenance ของเดือนนั้น (เฉพาะสถานะ COMPLETED)
    */
   @ResponseBody
   @PostMapping
@@ -110,7 +108,8 @@ public class InvoiceController {
     Integer  month      = (req.getBillingMonth() != null) ? req.getBillingMonth() : issueDate.getMonthValue();
 
     // ===== ห้อง (ต้องมี roomId) =====
-    Room room = roomRepo.findById(req.getRoomId()).orElseThrow();
+    Room room = roomRepo.findById(req.getRoomId())
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
 
     // ===== Lease ที่ ACTIVE ณ วัน issueDate =====
     Lease lease = leaseRepo.findActiveLeaseByRoomOnDate(room.getId(), issueDate).orElse(null);
@@ -124,11 +123,9 @@ public class InvoiceController {
         throw new IllegalArgumentException("No active lease found and tenantId not provided.");
       }
     } else {
-      // ถ้ามี lease แล้ว tenantId ต้องตรงกับใน lease
       if (tenantFromLease != null && !req.getTenantId().equals(tenantFromLease.getId())) {
         throw new IllegalArgumentException("Tenant does not match active lease for the room/date.");
       }
-      // อ้างอิงด้วย id โดยไม่ต้องโหลด entity เต็ม
       tenant = new Tenant();
       tenant.setId(req.getTenantId());
     }
@@ -142,7 +139,7 @@ public class InvoiceController {
     in.setBillingYear(year);
     in.setBillingMonth(month);
 
-    // ค่าเช่า: request > lease.monthlyRent > 0
+    // ค่าเช่า
     BigDecimal rent = req.getRentBaht();
     if (rent == null && lease != null) rent = lease.getMonthlyRent();
     if (rent == null) rent = BigDecimal.ZERO;
@@ -169,7 +166,7 @@ public class InvoiceController {
     // อื่น ๆ
     in.setOtherBaht(req.getOtherBaht() != null ? req.getOtherBaht() : BigDecimal.ZERO);
 
-    // ค่าส่วนกลาง/ค่าขยะ (ค่า default จากห้องใช้เฉพาะตอน include=true และยังไม่ได้ส่งมา)
+    // ค่าส่วนกลาง/ค่าขยะ
     BigDecimal commonFee  = req.getCommonFeeBaht();
     BigDecimal garbageFee = req.getGarbageFeeBaht();
     if (commonFee == null && includeCommonFee)   commonFee  = room.getCommonFeeBaht();
@@ -179,7 +176,7 @@ public class InvoiceController {
     in.setCommonFeeBaht(commonFee);
     in.setGarbageFeeBaht(garbageFee);
 
-    // ===== รวมค่า Maintenance ของ "เดือนบิล" นี้ (สถานะ COMPLETED เท่านั้น) =====
+    // ===== รวม Maintenance ของเดือนบิลนี้ =====
     LocalDate firstDay = LocalDate.of(year, month, 1);
     LocalDate lastDay  = firstDay.withDayOfMonth(firstDay.lengthOfMonth());
 
@@ -193,7 +190,7 @@ public class InvoiceController {
 
     in.setMaintenanceBaht(maintenanceSum);
 
-    // รวมยอด (กัน null)
+    // รวมยอด
     BigDecimal total = BigDecimal.ZERO;
     total = total.add(sum(in.getRentBaht()));
     total = total.add(sum(in.getElectricityBaht()));
@@ -201,7 +198,7 @@ public class InvoiceController {
     total = total.add(sum(in.getOtherBaht()));
     total = total.add(sum(in.getCommonFeeBaht()));
     total = total.add(sum(in.getGarbageFeeBaht()));
-    total = total.add(sum(in.getMaintenanceBaht()));   // << บวก Maintenance
+    total = total.add(sum(in.getMaintenanceBaht()));
     in.setTotalBaht(total);
 
     return repo.save(in);
@@ -209,24 +206,24 @@ public class InvoiceController {
 
   // ---------- Mark as PAID / UNPAID ----------
 
-  /** Mark เป็น PAID (ผู้ใช้ต้องส่ง paidDate เอง) */
   @ResponseBody
   @PostMapping("/{id}/mark-paid")
   public Invoice markPaid(
       @PathVariable Long id,
       @RequestParam("paidDate") @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate paidDate
   ) {
-    Invoice inv = repo.findById(id).orElseThrow();
+    Invoice inv = repo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
     inv.setStatus(Invoice.Status.PAID);
     inv.setPaidDate(paidDate);
     return repo.save(inv);
   }
 
-  /** ย้อนสถานะกลับเป็น PENDING และล้าง paidDate ออก */
   @ResponseBody
   @PatchMapping("/{id}/unpaid")
   public Invoice markUnpaid(@PathVariable Long id) {
-    Invoice inv = repo.findById(id).orElseThrow();
+    Invoice inv = repo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
     inv.setStatus(Invoice.Status.PENDING);
     inv.setPaidDate(null);
     return repo.save(inv);
@@ -234,18 +231,18 @@ public class InvoiceController {
 
   // ---------- View / PDF ----------
 
-  /** เรนเดอร์ Thymeleaf: templates/invoice.html */
   @GetMapping("/{id}/print")
   public String print(@PathVariable Long id, Model model) {
-    Invoice invoice = repo.findById(id).orElseThrow();
+    Invoice invoice = repo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
     model.addAttribute("invoice", invoice);
     return "invoice";
   }
 
-  /** ส่ง PDF (binary) */
   @GetMapping("/{id}/pdf")
   public ResponseEntity<byte[]> exportPdf(@PathVariable Long id) {
-    Invoice invoice = repo.findById(id).orElseThrow();
+    Invoice invoice = repo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
     byte[] pdf = pdfService.renderTemplateToPdf("invoice", Map.of("invoice", invoice));
 
     return ResponseEntity.ok()
@@ -256,7 +253,6 @@ public class InvoiceController {
 
   // ---------- Error handling ----------
 
-  /** ให้ IllegalArgumentException กลับเป็น 400 พร้อมข้อความสั้น ๆ */
   @ResponseBody
   @ExceptionHandler(IllegalArgumentException.class)
   public ResponseEntity<Map<String, String>> handleIllegalArg(IllegalArgumentException ex) {
