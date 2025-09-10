@@ -12,7 +12,6 @@ import com.devsop.project.apartmentinvoice.entity.Lease.Status;
 
 public interface LeaseRepository extends JpaRepository<Lease, Long> {
 
-  // ---------- ใช้กับการตอบ JSON (fetch join เพื่อตัด Lazy proxy) ----------
   @Query("""
          select l
          from Lease l
@@ -48,7 +47,6 @@ public interface LeaseRepository extends JpaRepository<Lease, Long> {
          """)
   List<Lease> findByTenantIdWithRefs(Long tenantId);
 
-  // ---------- เมธอดสำหรับเติมค่าเช่าอัตโนมัติ ----------
   @Query("""
          select l
          from Lease l
@@ -61,7 +59,26 @@ public interface LeaseRepository extends JpaRepository<Lease, Long> {
          """)
   Optional<Lease> findActiveLeaseByRoomOnDate(Long roomId, LocalDate onDate);
 
-  // ---------- เมธอดค้นหาปกติ (เผื่อใช้จุดอื่น) ----------
+  @Query("""
+         select l
+         from Lease l
+         join fetch l.room r
+         join fetch l.tenant t
+         where r.number = :roomNumber
+           and l.status = com.devsop.project.apartmentinvoice.entity.Lease.Status.ACTIVE
+         """)
+  Optional<Lease> findFirstActiveByRoomNumber(Integer roomNumber);
+
+  @Query("""
+         select l
+         from Lease l
+         join fetch l.room r
+         join fetch l.tenant t
+         where r.number = :roomNumber
+         order by l.startDate desc
+         """)
+  List<Lease> findHistoryByRoomNumberWithRefs(Integer roomNumber);
+
   List<Lease> findByRoom_Id(Long roomId);
   List<Lease> findByTenant_Id(Long tenantId);
   List<Lease> findByStatus(Status status);
@@ -69,4 +86,8 @@ public interface LeaseRepository extends JpaRepository<Lease, Long> {
 
   List<Lease> findByRoom_IdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
       Long roomId, LocalDate date1, LocalDate date2);
+
+  Optional<Lease> findFirstByRoom_NumberAndStatus(Integer roomNumber, Status status);
+  boolean existsByRoom_NumberAndStatus(Integer roomNumber, Status status);
+  List<Lease> findByRoom_NumberOrderByStartDateDesc(Integer roomNumber);
 }

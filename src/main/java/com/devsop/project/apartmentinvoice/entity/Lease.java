@@ -45,5 +45,22 @@ public class Lease {
   @Column(length = 1000)
   private String notes;
 
+  // ---------- Custom printable fields ----------
+  @Column(length = 200)
+  private String customName;                 // ชื่อผู้เช่า (custom กรอกเอง)
+
+  @Column(length = 32)
+  private String customIdCard;               // บัตรประชาชน (custom)
+
+  @Column(columnDefinition = "TEXT")
+  private String customAddress;              // ที่อยู่ (custom)
+
+  @Column(columnDefinition = "TEXT")
+  private String customRules;                // กฎ/รายละเอียดพิเศษ (custom)
+
+  // ---------- Settled flag ----------
+  private Boolean settled = Boolean.FALSE;   // default false
+  private LocalDate settledDate;             // วันที่เคลียร์สัญญาเรียบร้อย
+
   public enum Status { ACTIVE, ENDED }
 }
