@@ -1,21 +1,3 @@
-#FROM gradle:8.10.2-jdk21 AS build
-#WORKDIR /app
-#
-#COPY build.gradle settings.gradle gradlew ./
-#COPY gradle ./gradle
-#RUN ./gradlew dependencies || return 0
-#
-#COPY . .
-#RUN ./gradlew bootJar -x test
-#
-#FROM eclipse-temurin:21-jdk
-#WORKDIR /app
-#COPY --from=build /app/build/libs/*.jar app.jar
-#
-#EXPOSE 8080
-#ENTRYPOINT ["java", "-jar", "app.jar"]
-
-
 # --- BUILD STAGE ---
 FROM gradle:8.10.2-jdk21 AS build
 WORKDIR /app
@@ -31,6 +13,6 @@ WORKDIR /app
 COPY --from=build /app/build/libs/*.jar app.jar
 
 # Update the exposed port to match your application's configuration
-EXPOSE 8000
+EXPOSE 8080
 
 ENTRYPOINT ["java", "-jar", "app.jar"]
