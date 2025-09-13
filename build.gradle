@@ -29,22 +29,22 @@ dependencies {
 	implementation 'org.springframework.boot:spring-boot-starter-validation'
 	implementation 'org.springframework.boot:spring-boot-starter-web'
     // comment this out for docker
-//	implementation 'org.flywaydb:flyway-core'
+	implementation 'org.flywaydb:flyway-core'
     // comment this out for docker
-//	implementation 'org.flywaydb:flyway-database-postgresql'
+	implementation 'org.flywaydb:flyway-database-postgresql'
 	compileOnly 'org.projectlombok:lombok'
 	developmentOnly 'org.springframework.boot:spring-boot-devtools'
     // comment this out for docker
-//	runtimeOnly 'org.postgresql:postgresql'
+	runtimeOnly 'org.postgresql:postgresql'
     annotationProcessor 'org.projectlombok:lombok'
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     // comment this out for docker
-//	runtimeOnly 'com.h2database:h2'
+	runtimeOnly 'com.h2database:h2'
 
 	runtimeOnly 'com.mysql:mysql-connector-j'
     // for docker
-    testImplementation 'com.h2database:h2'
+    // testImplementation 'com.h2database:h2'
 
     implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
 
