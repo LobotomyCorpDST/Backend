@@ -15,7 +15,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . --file Dockerfile -t mmmmnl/lobotomycorp:latest .
+      run: docker build . --file Dockerfile --tag mmmmnl/lobotomycorp:latest .
     - name: login
       run: docker login -u mmmmnl -p dckr_pat_9gts_uWvYaaCOuDmAiX2C_8nOKA
     - name: push docker
