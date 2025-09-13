@@ -6,6 +6,7 @@ COPY gradle ./gradle
 RUN chmod 777 ./gradlew
 RUN ./gradlew dependencies || return 0
 COPY . .
+RUN chmod +x ./gradlew
 RUN ./gradlew bootJar -x test
 
 # --- FINAL STAGE ---
