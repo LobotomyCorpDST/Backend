@@ -10,9 +10,13 @@ jobs:
 
   build:
 
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
     - uses: actions/checkout@v4
     - name: Build the Docker image
-      run: docker build . --file Dockerfile --tag my-image-name:$(date +%s)
+      run: docker build . --file Dockerfile -t mmmmnl/lobotomycorp:latest .
+    - name: login
+      run: docker login -u mmmmnl -p dckr_pat_9gts_uWvYaaCOuDmAiX2C_8nOKA
+    - name: push docker
+      run: docker push mmmmnl/lobotomycorp:latest
