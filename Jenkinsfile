@@ -19,7 +19,7 @@ pipeline {
         }
         stage('login docker hub') {
             steps {
-                sh 'docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}'
+                sh 'docker login -u ${{ $DOCKERHUB_USERNAME }} -p ${{ $DOCKERHUB_PASSWORD }}'
             }
         }
         stage('Push image') {
