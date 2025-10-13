@@ -12,24 +12,23 @@ spring:
       on-profile: dev
   datasource:
     url: jdbc:h2:mem:demo;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
-#    driver-class-name: org.h2.Driver
     username: sa
     password:
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    driver-class-name: org.h2.Driver
   jpa:
     hibernate:
       ddl-auto: update
     show-sql: true
     properties:
-#      hibernate.format_sql: true
       hibernate:
-        dialect: org.hibernate.dialect.MySQLDialect
+        dialect: org.hibernate.dialect.H2Dialect
   h2:
-    console.enabled: true
+    console:
+      enabled: true
   flyway:
     enabled: false
   thymeleaf:
-    cache: false   # <== ปิด cache ตอน dev
+    cache: false
 server:
   port: 8080
 
@@ -48,15 +47,16 @@ spring:
       ddl-auto: none
     show-sql: true
     properties:
-      hibernate.format_sql: true
+      hibernate:
+        format_sql: true
   flyway:
     enabled: true
   thymeleaf:
-    cache: false   # <== ปิด cache ไว้ก่อน (ถ้า deploy จริง อาจเปลี่ยนเป็น true เพื่อ performance)
+    cache: false
 server:
   port: 8080
 
-# ===== mysql =====
+# ===== mysql (รันบนเครื่องตรง ๆ ใช้ localhost) =====
 ---
 spring:
   config:
@@ -71,11 +71,53 @@ spring:
       ddl-auto: update
     show-sql: true
     properties:
-      hibernate.dialect: org.hibernate.dialect.MySQL8Dialect
-      hibernate.format_sql: true
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+        format_sql: true
   flyway:
     enabled: false
   thymeleaf:
-    cache: false   # <== ปิด cache เวลา dev/test
+    cache: false
 server:
   port: 8080
+
+# ===== docker (ชี้ไป MySQL ใน docker compose; host ใช้ชื่อ service: db) =====
+---
+spring:
+  config:
+    activate:
+      on-profile: docker
+
+  datasource:
+    url: jdbc:mysql://db:3306/apartment_db?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=UTC
+    username: appuser
+    password: apppass
+    driver-class-name: com.mysql.cj.jdbc.Driver
+
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.MySQL8Dialect
+
+  flyway:
+    enabled: false
+
+  h2:
+    console:
+      enabled: false
+
+server:
+  port: 8080
+
+# ===== common app/security =====
+app:
+  jwt:
+    secret: "this-is-a-demo-secret-key-please-change-it-32bytes"
+    expiration: 28800000
+
+logging:
+  level:
+    org.springframework.security: DEBUG
