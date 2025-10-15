@@ -10,6 +10,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.devsop.project.apartmentinvoice.entity.Tenant;
 import com.devsop.project.apartmentinvoice.repository.TenantRepository;
@@ -35,10 +36,10 @@ public class TenantController {
 
   @DeleteMapping("/{id}")
   public void delete(@PathVariable Long id) { repo.deleteById(id); }
-}
 
-@GetMapping("/{id}")
-public Tenant findById(@PathVariable Long id) {
-    return repo.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
+//  @GetMapping("/{id}")
+//  public Tenant findById(@PathVariable Long id) {
+//      return repo.findById(id)
+//              .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
+//  }
 }
