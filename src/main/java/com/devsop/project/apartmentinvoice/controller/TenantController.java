@@ -36,9 +36,3 @@ public class TenantController {
   @DeleteMapping("/{id}")
   public void delete(@PathVariable Long id) { repo.deleteById(id); }
 }
-
-@GetMapping("/{id}")
-public Tenant findById(@PathVariable Long id) {
-    return repo.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
-}
