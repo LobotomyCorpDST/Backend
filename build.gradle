@@ -44,7 +44,7 @@ dependencies {
 	testImplementation 'org.springframework.boot:spring-boot-starter-test'
 	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
     // comment this out for docker
-	runtimeOnly 'com.h2database:h2'
+//	runtimeOnly 'com.h2database:h2'
 
 	runtimeOnly 'com.mysql:mysql-connector-j'
     // for docker
