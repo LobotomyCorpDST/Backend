@@ -19,6 +19,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import com.devsop.project.apartmentinvoice.dto.CreateMaintenanceRequest;
 import com.devsop.project.apartmentinvoice.dto.MaintenanceResponse;
+import com.devsop.project.apartmentinvoice.dto.UpdateMaintenanceRequest;
 import com.devsop.project.apartmentinvoice.entity.Maintenance;
 import com.devsop.project.apartmentinvoice.entity.Maintenance.Status;
 import com.devsop.project.apartmentinvoice.entity.Room;
@@ -135,30 +136,55 @@ public class MaintenanceController {
     private String status;
   }
 
-  // ใช้ DTO เดิมในการอัปเดต แต่เปลี่ยนห้องด้วย roomNumber
-  @PutMapping("/{id}")
-  public MaintenanceResponse update(
-      @PathVariable Long id,
-      @Valid @RequestBody CreateMaintenanceRequest req) {
+// ---------- Update ----------
 
-    Maintenance m = maintenanceRepo.findById(id)
-        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Maintenance id " + id + " not found"));
+// ใช้ DTO ใหม่ในการอัปเดต (ไม่บังคับทุกฟิลด์)
+@PutMapping("/{id}")
+public MaintenanceResponse update(
+    @PathVariable Long id,
+    @Valid @RequestBody UpdateMaintenanceRequest req) {
 
-    // ถ้าส่ง roomNumber มาและต่างจากห้องเดิม → เปลี่ยนห้องด้วย number
-    if (req.getRoomNumber() != null && !req.getRoomNumber().equals(m.getRoom().getNumber())) {
-      Room room = roomRepo.findByNumber(req.getRoomNumber())
-          .orElseThrow(() -> new ResponseStatusException(
-              HttpStatus.NOT_FOUND, "Room number " + req.getRoomNumber() + " not found"));
-      m.setRoom(room);
+  Maintenance m = maintenanceRepo.findById(id)
+      .orElseThrow(() -> new ResponseStatusException(
+          HttpStatus.NOT_FOUND, "Maintenance id " + id + " not found"));
+
+  // ถ้ามี roomNumber และต่างจากห้องเดิม → อัปเดตห้อง
+  if (req.getRoomNumber() != null && !req.getRoomNumber().equals(m.getRoom().getNumber())) {
+    Room room = roomRepo.findByNumber(req.getRoomNumber())
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Room number " + req.getRoomNumber() + " not found"));
+    m.setRoom(room);
+  }
+
+  if (req.getDescription() != null) m.setDescription(req.getDescription());
+  if (req.getScheduledDate() != null) m.setScheduledDate(req.getScheduledDate());
+  if (req.getCompletedDate() != null) m.setCompletedDate(req.getCompletedDate());
+  if (req.getCostBaht() != null) m.setCostBaht(req.getCostBaht());
+  // ปรับสถานะ (และจัดการ completedDate)
+  if (req.getStatus() != null) {
+  try {
+    Status newStatus = Status.valueOf(req.getStatus().toUpperCase());
+    m.setStatus(newStatus);
+
+    // ถ้าสถานะเป็น COMPLETED → ตั้ง completedDate = วันนี้
+    if (newStatus == Status.COMPLETED) {
+      m.setCompletedDate(LocalDate.now());
+    } 
+    // ถ้าเปลี่ยนเป็นสถานะอื่น → ล้าง completedDate
+    else {
+      m.setCompletedDate(null);
     }
 
-    m.setDescription(req.getDescription());
-    m.setScheduledDate(req.getScheduledDate());
-    m.setCostBaht(req.getCostBaht());
-
-    m = maintenanceRepo.save(m);
-    return toDto(m);
+  } catch (IllegalArgumentException ex) {
+    throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid status: " + req.getStatus());
   }
+  }
+
+
+  m = maintenanceRepo.save(m);
+  return toDto(m);
+  }
+
 
   // ---------- mapper ----------
   private MaintenanceResponse toDto(Maintenance m) {
