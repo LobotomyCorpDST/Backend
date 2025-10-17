@@ -6,6 +6,7 @@ import java.util.Date;
 
 import org.springframework.stereotype.Component;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.JwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.SignatureAlgorithm;
@@ -15,20 +16,25 @@ import io.jsonwebtoken.security.Keys;
 public class JwtTokenProvider {
 
     private static final String SECRET = "change-this-secret-to-32+chars-change-this-secret";
-    private static final long   EXPIRE_MS = 1000L * 60 * 60 * 12;
+    private static final long EXPIRE_MS = 1000L * 60 * 60 * 12; // 12 hours
     private static final String CLAIM_ROLE = "role";
 
     private Key key() {
         return Keys.hmacShaKeyFor(SECRET.getBytes(StandardCharsets.UTF_8));
     }
 
+    // ✅ Generate token for any user or guest
     public String generate(String username, String role) {
         Date now = new Date();
         Date exp = new Date(now.getTime() + EXPIRE_MS);
 
+        // Normalize role (so it always has ROLE_ prefix)
+        String normalizedRole = (role == null) ? "ROLE_GUEST" :
+                (role.startsWith("ROLE_") ? role : "ROLE_" + role.toUpperCase());
+
         return Jwts.builder()
-                .setSubject(username)
-                .claim(CLAIM_ROLE, role)
+                .setSubject(username == null ? "guest" : username)
+                .claim(CLAIM_ROLE, normalizedRole)
                 .setIssuedAt(now)
                 .setExpiration(exp)
                 .signWith(key(), SignatureAlgorithm.HS256)
@@ -50,8 +56,9 @@ public class JwtTokenProvider {
     }
 
     public String getRole(String token) {
-        Object v = Jwts.parserBuilder().setSigningKey(key()).build()
-                .parseClaimsJws(token).getBody().get(CLAIM_ROLE);
-        return v == null ? null : v.toString();
+        Claims claims = Jwts.parserBuilder().setSigningKey(key()).build()
+                .parseClaimsJws(token).getBody();
+        Object v = claims.get(CLAIM_ROLE);
+        return v == null ? "ROLE_GUEST" : v.toString(); // default to ROLE_GUEST if missing
     }
 }

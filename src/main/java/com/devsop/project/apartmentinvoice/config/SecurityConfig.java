@@ -31,10 +31,9 @@ public class SecurityConfig {
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
         http
-            // REST API -> ปกติปิด CSRF (หรือจัดการ token เอง)
             .csrf(csrf -> csrf.disable())
             .cors(cors -> cors.configurationSource(corsConfigurationSource()))
-            .headers(h -> h.frameOptions(f -> f.disable())) // ใช้กับ H2-console
+            .headers(h -> h.frameOptions(f -> f.disable()))
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
             .authorizeHttpRequests(auth -> auth
@@ -42,33 +41,20 @@ public class SecurityConfig {
                 .requestMatchers("/error", "/api/auth/**", "/h2-console/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // View routes (HTML/PDF ที่ไม่ใช่ /api)
-                .requestMatchers(HttpMethod.GET, "/invoices/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/leases/**").permitAll()
+                // ---------- Guest readable endpoints ----------
+                // Allow ROLE_GUEST to view data via GET
+                .requestMatchers(HttpMethod.GET, "/api/**").hasAnyAuthority("ROLE_GUEST", "GUEST", "ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
 
-                // ให้เปิดดู/สั่งพิมพ์ผ่าน API
-                .requestMatchers(HttpMethod.GET, "/api/invoices/*/pdf").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api/invoices/*/print").permitAll() // 👈 รองรับลิงก์เดิมที่ปุ่มยังเรียก
+                // ---------- Admin/Staff write permissions ----------
+                .requestMatchers(HttpMethod.POST,   "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
+                .requestMatchers(HttpMethod.PUT,    "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
+                .requestMatchers(HttpMethod.PATCH,  "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
+                .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
 
-                // ช่วงพัฒนา: อ่านข้อมูล invoice ทั้งหมด
-                .requestMatchers(HttpMethod.GET, "/api/invoices/**").permitAll()
-
-                // การแก้ไขข้อมูลใบแจ้งหนี้ -> ต้องล็อกอิน
-                .requestMatchers(HttpMethod.POST,   "/api/invoices").authenticated()
-                .requestMatchers(HttpMethod.PATCH,  "/api/invoices/**").authenticated()
-                .requestMatchers(HttpMethod.DELETE, "/api/invoices/**").authenticated()
-
-                // ตัวอย่างเดิมสำหรับ rooms (คงไว้)
-                .requestMatchers(HttpMethod.POST,   "/api/rooms/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                .requestMatchers(HttpMethod.PUT,    "/api/rooms/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                .requestMatchers(HttpMethod.PATCH,  "/api/rooms/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-                .requestMatchers(HttpMethod.DELETE, "/api/rooms/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-
-                // อื่น ๆ ต้องล็อกอิน
+                // ---------- Everything else ----------
                 .anyRequest().authenticated()
             )
 
-            // ใส่ JWT filter ไว้ก่อน UsernamePasswordAuthenticationFilter
             .addFilterBefore(jwtAuthFilter, UsernamePasswordAuthenticationFilter.class);
 
         return http.build();

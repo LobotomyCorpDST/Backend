@@ -1,7 +1,7 @@
 package com.devsop.project.apartmentinvoice.security;
 
 import java.io.IOException;
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
@@ -33,6 +33,24 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             FilterChain filterChain) throws ServletException, IOException {
 
         String header = request.getHeader("Authorization");
+
+        // ✅ Step 1: Handle Guest token shortcut (from frontend localStorage)
+        if (header != null && header.equals("Bearer guest-token")) {
+            if (SecurityContextHolder.getContext().getAuthentication() == null) {
+                List<GrantedAuthority> authorities =
+                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_GUEST"));
+
+                UsernamePasswordAuthenticationToken auth =
+                        new UsernamePasswordAuthenticationToken("guest", null, authorities);
+                auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                SecurityContextHolder.getContext().setAuthentication(auth);
+            }
+
+            filterChain.doFilter(request, response);
+            return;
+        }
+
+        // ✅ Step 2: Handle regular JWT tokens
         if (header != null && header.startsWith("Bearer ")) {
             String token = header.substring(7);
 
@@ -40,13 +58,14 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     && SecurityContextHolder.getContext().getAuthentication() == null) {
 
                 String username = jwtTokenProvider.getUsername(token);
-                String role = jwtTokenProvider.getRole(token); // e.g. "ADMIN" or "STAFF"
+                String role = jwtTokenProvider.getRole(token); // Already prefixed as ROLE_X
 
-                List<GrantedAuthority> authorities = new ArrayList<>();
-                if (role != null && !role.isBlank()) {
-                    authorities.add(new SimpleGrantedAuthority("ROLE_" + role)); // for hasRole('ADMIN') / hasAuthority('ROLE_ADMIN')
-                    authorities.add(new SimpleGrantedAuthority(role));           // for hasAuthority('ADMIN')
+                if (role == null || role.isBlank()) {
+                    role = "ROLE_GUEST"; // fallback
                 }
+
+                List<GrantedAuthority> authorities =
+                        Collections.singletonList(new SimpleGrantedAuthority(role));
 
                 UsernamePasswordAuthenticationToken auth =
                         new UsernamePasswordAuthenticationToken(username, null, authorities);
