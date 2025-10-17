@@ -79,6 +79,7 @@ public interface LeaseRepository extends JpaRepository<Lease, Long> {
          """)
   List<Lease> findHistoryByRoomNumberWithRefs(Integer roomNumber);
 
+  // ----- Derived queries (เดิม) -----
   List<Lease> findByRoom_Id(Long roomId);
   List<Lease> findByTenant_Id(Long tenantId);
   List<Lease> findByStatus(Status status);
@@ -90,4 +91,12 @@ public interface LeaseRepository extends JpaRepository<Lease, Long> {
   Optional<Lease> findFirstByRoom_NumberAndStatus(Integer roomNumber, Status status);
   boolean existsByRoom_NumberAndStatus(Integer roomNumber, Status status);
   List<Lease> findByRoom_NumberOrderByStartDateDesc(Integer roomNumber);
+
+  // ===== เพิ่มเติมเพื่อประสิทธิภาพและสรุปผล =====
+
+  /** ใช้เช็คว่าห้องมี ACTIVE lease อยู่แล้วหรือไม่ (ประหยัดกว่าดึง list แล้ว .stream()) */
+  boolean existsByRoom_IdAndStatus(Long roomId, Status status);
+
+  /** นับจำนวน lease ที่ยัง active ของ tenant (เผื่อใช้ทำ owned summary) */
+  long countByTenant_IdAndEndDateIsNull(Long tenantId);
 }

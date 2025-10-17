@@ -26,7 +26,76 @@ public class LeaseService {
   private final TenantRepository tenantRepo;
 
   /**
+   * Overload สำหรับ Controller ที่รับ tenantId / roomId / startDate
+   * - ตรวจ 404: tenant/room ต้องมีจริง
+   * - กันซ้ำ 409: ห้องต้องไม่มี ACTIVE lease อยู่แล้ว
+   * - จากนั้น delegate ไปยัง createLease(Lease draft) เพื่อคงพฤติกรรมเดิมทั้งหมด
+   */
+  @Transactional
+  public Lease createLease(Long tenantId, Long roomId, LocalDate startDate) {
+    // ---- หา Tenant
+    Tenant tenant = tenantRepo.findById(tenantId)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Tenant id " + tenantId + " not found"));
+
+    // ---- หา Room ด้วย id
+    Room room = roomRepo.findById(roomId)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Room id " + roomId + " not found"));
+
+    // ---- กันซ้อน: มี ACTIVE lease อยู่แล้วหรือไม่
+    boolean hasActive = leaseRepo.findByRoom_IdAndStatus(room.getId(), Status.ACTIVE)
+        .stream().findAny().isPresent();
+    if (hasActive) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Room already has an ACTIVE lease");
+    }
+
+    // ---- ประกอบ draft แล้วใช้เมธอดเดิม
+    Lease draft = Lease.builder()
+        .tenant(tenant)
+        .room(room)
+        .startDate(startDate != null ? startDate : LocalDate.now())
+        .build();
+
+    return createLease(draft);
+  }
+
+  /**
+   * Overload ใหม่: รับ tenantId + roomNumber + startDate
+   * ใช้ตอนที่ฝั่ง FE ส่งเลขห้องมาแทน room.id
+   */
+  @Transactional
+  public Lease createLeaseByRoomNumber(Long tenantId, Integer roomNumber, LocalDate startDate) {
+    // ---- หา Tenant
+    Tenant tenant = tenantRepo.findById(tenantId)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Tenant id " + tenantId + " not found"));
+
+    // ---- หา Room ด้วยเลขห้อง
+    Room room = roomRepo.findByNumber(roomNumber)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Room number " + roomNumber + " not found"));
+
+    // ---- กันซ้อน: มี ACTIVE lease อยู่แล้วหรือไม่
+    boolean hasActive = leaseRepo.findByRoom_IdAndStatus(room.getId(), Status.ACTIVE)
+        .stream().findAny().isPresent();
+    if (hasActive) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Room already has an ACTIVE lease");
+    }
+
+    // ---- ประกอบ draft แล้วใช้เมธอดเดิม
+    Lease draft = Lease.builder()
+        .tenant(tenant)
+        .room(room)
+        .startDate(startDate != null ? startDate : LocalDate.now())
+        .build();
+
+    return createLease(draft);
+  }
+
+  /**
    * สร้างสัญญาเช่าใหม่ — รองรับการอ้างห้องด้วย room.id หรือ room.number
+   * และรองรับฟิลด์เสริม (monthlyRent, depositBaht, customName ฯลฯ) จาก draft
    */
   @Transactional
   public Lease createLease(Lease draft) {
@@ -165,4 +234,24 @@ public class LeaseService {
     l.setSettledDate(date != null ? date : LocalDate.now());
     return leaseRepo.save(l);
   }
+
+    /**
+   * Delete lease and cleanup room state if lease was ACTIVE.
+   */
+  @Transactional
+  public void deleteLease(Long id) {
+    Lease l = leaseRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease id " + id + " not found"));
+
+    // if this lease is ACTIVE, clear room occupancy
+    if (l.getStatus() == Status.ACTIVE && l.getRoom() != null) {
+      Room room = l.getRoom();
+      room.setStatus("FREE");
+      room.setTenant(null);
+      roomRepo.save(room);
+    }
+
+    leaseRepo.delete(l);
+  }
+
 }
