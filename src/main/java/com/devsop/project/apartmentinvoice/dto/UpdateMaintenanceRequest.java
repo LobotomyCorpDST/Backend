@@ -3,15 +3,23 @@ package com.devsop.project.apartmentinvoice.dto;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
-import com.devsop.project.apartmentinvoice.entity.Maintenance.Status;
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.Setter;
 
-import lombok.Data;
-
-@Data
+/**
+ * ใช้สำหรับอัปเดตงานบำรุงรักษา (ไม่บังคับทุกฟิลด์)
+ */
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
 public class UpdateMaintenanceRequest {
-  private String description;
+  private Integer roomNumber;     // ถ้าเปลี่ยนห้อง
+  private String description;     // คำอธิบาย
   private LocalDate scheduledDate;
-  private BigDecimal costBaht;
-  private Status status;
   private LocalDate completedDate;
+  private BigDecimal costBaht;
+  private String status;          // PLANNED / IN_PROGRESS / COMPLETED / CANCELED
 }
