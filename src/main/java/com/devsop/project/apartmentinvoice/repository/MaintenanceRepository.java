@@ -5,8 +5,11 @@ import java.util.Collection;
 import java.util.List;
 
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import com.devsop.project.apartmentinvoice.entity.Maintenance;
+import com.devsop.project.apartmentinvoice.dto.MaintenanceDueDto;
 
 public interface MaintenanceRepository extends JpaRepository<Maintenance, Long> {
 
@@ -33,4 +36,20 @@ public interface MaintenanceRepository extends JpaRepository<Maintenance, Long> 
   List<Maintenance> findByStatusOrderByScheduledDateAsc(Maintenance.Status status);
 
   List<Maintenance> findByRoom_NumberOrderByScheduledDateDesc(Integer roomNumber);
+
+  // ---------- ✅ ใหม่: สำหรับ Notification (Maintenance ถึงกำหนดวันนี้) ----------
+  @Query("""
+    select new com.devsop.project.apartmentinvoice.dto.MaintenanceDueDto(
+      m.id,
+      m.description,
+      r.number,
+      m.scheduledDate,
+      m.status
+    )
+    from Maintenance m
+    join m.room r
+    where m.scheduledDate = :date
+    order by r.number asc
+  """)
+  List<MaintenanceDueDto> findDueOn(@Param("date") LocalDate date);
 }
