@@ -26,7 +26,7 @@ public class AuthController {
   private final PasswordEncoder passwordEncoder;
   private final JwtTokenProvider jwtTokenProvider;
 
-  // POST /api/auth/register
+  // --- REGISTER ---
   @PostMapping("/register")
   public ResponseEntity<?> register(@RequestBody LoginRequest req) {
     Optional<UserAccount> exists = userRepo.findByUsername(req.getUsername());
@@ -43,9 +43,17 @@ public class AuthController {
     return ResponseEntity.ok(new SimpleUser(created.getUsername(), created.getRole()));
   }
 
-  // POST /api/auth/login
+  // --- LOGIN ---
   @PostMapping("/login")
   public ResponseEntity<?> login(@RequestBody LoginRequest req) {
+
+    // ✅ STEP 2: Allow static guest login (no DB needed)
+    if ("guest".equalsIgnoreCase(req.getUsername()) && "guest123".equals(req.getPassword())) {
+      String token = jwtTokenProvider.generate("guest", "GUEST");
+      return ResponseEntity.ok(new LoginResponse(token, "guest"));
+    }
+
+    // ✅ Default: normal user login via DB
     Optional<UserAccount> userOpt = userRepo.findByUsername(req.getUsername());
     if (userOpt.isEmpty()) {
       return ResponseEntity.status(401).body(new ErrorMsg("Invalid credentials"));
@@ -55,12 +63,11 @@ public class AuthController {
       return ResponseEntity.status(401).body(new ErrorMsg("Invalid credentials"));
     }
 
-    // สำคัญ: เรียก generate(String username) เพื่อเลี่ยงชนิดไม่ตรง
     String token = jwtTokenProvider.generate(user.getUsername(), user.getRole());
     return ResponseEntity.ok(new LoginResponse(token, user.getUsername()));
   }
 
-  /* ===== DTOs แบบง่าย ===== */
+  /* ===== DTOs ===== */
 
   @Data
   public static class LoginRequest {
