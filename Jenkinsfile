@@ -1,5 +1,13 @@
 pipeline {
     agent { label 'node' }
+
+    environment {
+      K8S_NAMESPACE   = 'doomed-apt'
+      BACK_DEPLOY     = 'backend-deployment'
+      BACK_CONTAINER  = 'backend'
+      BACK_IMAGE_REPO = 'mmmmnl/lobotomy'
+    }
+
     
     stages {
         stage('Checkout code') {
@@ -32,6 +40,24 @@ pipeline {
             steps {
                 sh 'docker push mmmmnl/lobotomycorp:v.0.0'
             }
+        }
+        stage('Deploy Backend to K8s') {
+          steps {
+            withCredentials([file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG_FILE')]) {
+              sh '''
+                set -e
+                export KUBECONFIG="${KUBECONFIG_FILE}"
+
+                kubectl apply -n ${K8S_NAMESPACE} -f k8s/deployment.yaml
+                kubectl apply -n ${K8S_NAMESPACE} -f k8s/service-nodeport.yaml
+
+                kubectl -n ${K8S_NAMESPACE} rollout restart deploy/${BACK_DEPLOY}
+                kubectl -n ${K8S_NAMESPACE} rollout status deploy/${BACK_DEPLOY} --timeout=180s
+
+                kubectl -n ${K8S_NAMESPACE} get svc backend -o wide || true
+              '''
+            }
+          }
         }
     }
 }
