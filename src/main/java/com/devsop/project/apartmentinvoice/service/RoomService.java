@@ -26,4 +26,12 @@ public class RoomService {
             .orElseThrow(() -> new ResponseStatusException(
                 HttpStatus.NOT_FOUND, "Room number " + number + " not found"));
     }
+
+    public void deleteRoom(Long id) {
+        if (!roomRepository.existsById(id)) {
+            throw new RuntimeException("Room not found");
+        }
+        roomRepository.deleteById(id);
+    }
+
 }

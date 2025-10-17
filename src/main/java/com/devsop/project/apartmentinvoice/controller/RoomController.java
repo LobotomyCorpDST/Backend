@@ -5,12 +5,13 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.bind.annotation.DeleteMapping;       // ✅ added
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.PutMapping;         // << added
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMapping;         // << added
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -121,6 +122,14 @@ public class RoomController {
     }
 
     return roomRepo.save(r);
+  }
+
+  /** ✅ ลบห้องตาม id */
+  @DeleteMapping("/{id}")
+  public void delete(@PathVariable Long id) {
+    Room room = roomRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
+    roomRepo.delete(room);
   }
 
   @GetMapping("/ping")

@@ -234,4 +234,24 @@ public class LeaseService {
     l.setSettledDate(date != null ? date : LocalDate.now());
     return leaseRepo.save(l);
   }
+
+    /**
+   * Delete lease and cleanup room state if lease was ACTIVE.
+   */
+  @Transactional
+  public void deleteLease(Long id) {
+    Lease l = leaseRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease id " + id + " not found"));
+
+    // if this lease is ACTIVE, clear room occupancy
+    if (l.getStatus() == Status.ACTIVE && l.getRoom() != null) {
+      Room room = l.getRoom();
+      room.setStatus("FREE");
+      room.setTenant(null);
+      roomRepo.save(room);
+    }
+
+    leaseRepo.delete(l);
+  }
+
 }

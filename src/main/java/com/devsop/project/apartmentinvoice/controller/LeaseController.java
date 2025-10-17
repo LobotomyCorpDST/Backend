@@ -11,6 +11,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -280,5 +281,10 @@ public class LeaseController {
   @DeleteMapping("/{id}")
   public void delete(@PathVariable Long id) {
     leaseRepo.deleteById(id);
+  }
+
+    @PatchMapping("/{id}")
+  public LeaseView patch(@PathVariable Long id, @RequestBody Lease patch) {
+    return toView(leaseService.updateLease(id, patch));
   }
 }
