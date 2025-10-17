@@ -26,7 +26,76 @@ public class LeaseService {
   private final TenantRepository tenantRepo;
 
   /**
+   * Overload สำหรับ Controller ที่รับ tenantId / roomId / startDate
+   * - ตรวจ 404: tenant/room ต้องมีจริง
+   * - กันซ้ำ 409: ห้องต้องไม่มี ACTIVE lease อยู่แล้ว
+   * - จากนั้น delegate ไปยัง createLease(Lease draft) เพื่อคงพฤติกรรมเดิมทั้งหมด
+   */
+  @Transactional
+  public Lease createLease(Long tenantId, Long roomId, LocalDate startDate) {
+    // ---- หา Tenant
+    Tenant tenant = tenantRepo.findById(tenantId)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Tenant id " + tenantId + " not found"));
+
+    // ---- หา Room ด้วย id
+    Room room = roomRepo.findById(roomId)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Room id " + roomId + " not found"));
+
+    // ---- กันซ้อน: มี ACTIVE lease อยู่แล้วหรือไม่
+    boolean hasActive = leaseRepo.findByRoom_IdAndStatus(room.getId(), Status.ACTIVE)
+        .stream().findAny().isPresent();
+    if (hasActive) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Room already has an ACTIVE lease");
+    }
+
+    // ---- ประกอบ draft แล้วใช้เมธอดเดิม
+    Lease draft = Lease.builder()
+        .tenant(tenant)
+        .room(room)
+        .startDate(startDate != null ? startDate : LocalDate.now())
+        .build();
+
+    return createLease(draft);
+  }
+
+  /**
+   * Overload ใหม่: รับ tenantId + roomNumber + startDate
+   * ใช้ตอนที่ฝั่ง FE ส่งเลขห้องมาแทน room.id
+   */
+  @Transactional
+  public Lease createLeaseByRoomNumber(Long tenantId, Integer roomNumber, LocalDate startDate) {
+    // ---- หา Tenant
+    Tenant tenant = tenantRepo.findById(tenantId)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Tenant id " + tenantId + " not found"));
+
+    // ---- หา Room ด้วยเลขห้อง
+    Room room = roomRepo.findByNumber(roomNumber)
+        .orElseThrow(() -> new ResponseStatusException(
+            HttpStatus.NOT_FOUND, "Room number " + roomNumber + " not found"));
+
+    // ---- กันซ้อน: มี ACTIVE lease อยู่แล้วหรือไม่
+    boolean hasActive = leaseRepo.findByRoom_IdAndStatus(room.getId(), Status.ACTIVE)
+        .stream().findAny().isPresent();
+    if (hasActive) {
+      throw new ResponseStatusException(HttpStatus.CONFLICT, "Room already has an ACTIVE lease");
+    }
+
+    // ---- ประกอบ draft แล้วใช้เมธอดเดิม
+    Lease draft = Lease.builder()
+        .tenant(tenant)
+        .room(room)
+        .startDate(startDate != null ? startDate : LocalDate.now())
+        .build();
+
+    return createLease(draft);
+  }
+
+  /**
    * สร้างสัญญาเช่าใหม่ — รองรับการอ้างห้องด้วย room.id หรือ room.number
+   * และรองรับฟิลด์เสริม (monthlyRent, depositBaht, customName ฯลฯ) จาก draft
    */
   @Transactional
   public Lease createLease(Lease draft) {
@@ -120,20 +189,45 @@ public class LeaseService {
 
     // ย้ายห้อง (รับทั้ง id หรือ number)
     if (patch.getRoom() != null && (patch.getRoom().getId() != null || patch.getRoom().getNumber() != null)) {
-      Room r;
-      if (patch.getRoom().getNumber() != null) {
-        r = roomRepo.findByNumber(patch.getRoom().getNumber())
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Room number " + patch.getRoom().getNumber() + " not found"));
-      } else {
-        r = roomRepo.findById(patch.getRoom().getId())
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Room id " + patch.getRoom().getId() + " not found"));
-      }
-      l.setRoom(r);
+        Room newRoom;
+
+        if (patch.getRoom().getNumber() != null) {
+            newRoom = roomRepo.findByNumber(patch.getRoom().getNumber())
+                .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Room number " + patch.getRoom().getNumber() + " not found"));
+        } else {
+            newRoom = roomRepo.findById(patch.getRoom().getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Room id " + patch.getRoom().getId() + " not found"));
+        }
+
+        // ✅ Free the old room first if it exists and is different
+        Room oldRoom = l.getRoom();
+        if (oldRoom != null && !oldRoom.getId().equals(newRoom.getId())) {
+            oldRoom.setStatus("FREE");
+            oldRoom.setTenant(null);
+            roomRepo.save(oldRoom);
+        }
+
+        // ✅ Assign the new room
+        l.setRoom(newRoom);
+    }
+
+    // ✅ Sync room status + tenant after edit
+    if (l.getRoom() != null) {
+        Room room = l.getRoom();
+        if (l.getTenant() != null) {
+            room.setStatus("OCCUPIED");
+            room.setTenant(l.getTenant());
+        } else {
+            room.setStatus("FREE");
+            room.setTenant(null);
+        }
+        roomRepo.save(room);
     }
 
     return leaseRepo.save(l);
+
   }
 
   @Transactional
@@ -165,4 +259,40 @@ public class LeaseService {
     l.setSettledDate(date != null ? date : LocalDate.now());
     return leaseRepo.save(l);
   }
+
+    /**
+   * Delete lease and cleanup linked room state reliably.
+   */
+  @Transactional
+  public void deleteLease(Long id) {
+    Lease l = leaseRepo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease id " + id + " not found"));
+
+    // Determine linked room id (safe even if l.getRoom() is a lazy proxy or detached)
+    Long roomId = null;
+    if (l.getRoom() != null) {
+      try {
+        roomId = l.getRoom().getId();
+      } catch (Exception ex) {
+        roomId = null;
+      }
+    }
+
+    // If we have a room id, fetch the canonical Room entity from roomRepo and clear it
+    if (roomId != null) {
+      Room room = roomRepo.findById(roomId)
+          .orElse(null);
+      if (room != null) {
+        room.setStatus("FREE");
+        room.setTenant(null);
+        roomRepo.save(room); // save before deleting lease to ensure DB state is consistent
+      }
+    }
+
+    // Finally remove the lease
+    leaseRepo.delete(l);
+  }
+
+
+
 }

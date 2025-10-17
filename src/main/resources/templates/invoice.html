@@ -2,148 +2,157 @@
 <html lang="th" xmlns="http://www.w3.org/1999/xhtml" xmlns:th="http://www.thymeleaf.org">
 <head>
   <meta charset="UTF-8" />
-  <title>Apartment Invoice</title>
+  <title>ใบแจ้งหนี้ค่าเช่าอพาร์ตเมนต์</title>
 
   <style>
     @page { size: A4; margin: 16mm; }
-    body { font-family: Arial, sans-serif; margin: 16px; font-size: 14px; }
-    h2 { text-align: center; margin-bottom: 20px; }
+    body {
+      font-family: 'TH Sarabun New', 'Noto Sans Thai', sans-serif;
+      font-size: 16px;
+      color: #222;
+      line-height: 1.4;
+    }
 
-    p { margin: 4px 0; }
-    .label { font-weight: bold; }
+    h2 {
+      text-align: center;
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+    h4 {
+      text-align: center;
+      font-weight: normal;
+      margin-top: 0;
+      margin-bottom: 16px;
+    }
 
-    table { width: 100%; border-collapse: collapse; margin-top: 12px; }
-    th, td { border: 1px solid #ccc; padding: 8px; text-align: left; vertical-align: top; }
-    th { background-color: #f2f2f2; }
+    .info {
+      margin-bottom: 10px;
+    }
+    .info p { margin: 3px 0; }
 
-    .total { font-weight: bold; text-align: right; }
-    .status { margin-top: 12px; font-weight: bold; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 10px;
+      font-size: 15px;
+    }
+    th, td {
+      border: 1px solid #999;
+      padding: 6px 8px;
+    }
+    th {
+      background-color: #f0f0f0;
+      text-align: center;
+    }
+    td.right { text-align: right; }
 
-    .muted { color:#666; font-size: 12px; }
-    .right { text-align: right; }
+    tfoot td {
+      font-weight: bold;
+      background: #fafafa;
+    }
 
-    .no-print { margin-bottom: 12px; }
-    @media print { .no-print { display: none; } }
+    .summary {
+      margin-top: 12px;
+      font-weight: bold;
+    }
+
+    .signatures {
+      margin-top: 60px;
+      display: flex;
+      justify-content: space-between;
+      font-size: 15px;
+    }
+
+    .sign-box {
+      text-align: center;
+      width: 45%;
+      border-top: 1px solid #444;
+      padding-top: 4px;
+    }
+
+    .muted { color:#666; font-size: 13px; }
+
   </style>
 </head>
+
 <body>
-  <div class="no-print">
-    <button onclick="window.print()">พิมพ์</button>
+
+  <h2>ใบแจ้งหนี้ (Invoice)</h2>
+  <h4>อพาร์ตเมนต์ / Apartment</h4>
+
+  <div class="info">
+    <p><b>ห้องพัก:</b> <span th:text="${invoice.room.number}">101</span></p>
+    <p><b>ผู้เช่า:</b> <span th:text="${invoice.tenant.name}">Jane Smith</span></p>
+    <p><b>เบอร์โทร:</b> <span th:text="${#strings.defaultString(invoice.tenant.phone,'-')}">081-222-3333</span></p>
+    <p><b>รอบบิล:</b> <span th:text="${invoice.billingMonth}">9</span>/<span th:text="${invoice.billingYear}">2025</span></p>
+    <p><b>วันที่ออกใบแจ้งหนี้:</b> <span th:text="${#temporals.format(invoice.issueDate,'dd/MM/yyyy')}">02/09/2025</span></p>
+    <p><b>วันครบกำหนดชำระ:</b> <span th:text="${#temporals.format(invoice.dueDate,'dd/MM/yyyy')}">09/09/2025</span></p>
   </div>
-
-  <h2>
-    Apartment Invoice
-    <span th:if="${invoice.status?.name() == 'PAID'}"
-          style="margin-left:12px;padding:2px 8px;border:2px solid #090;color:#090;border-radius:6px;font-size:12px;">
-      PAID
-    </span>
-  </h2>
-
-  <p>
-    <span class="label">Room:</span>
-    <span th:text="${invoice.room.number}">101</span>
-  </p>
-
-  <p>
-    <span class="label">Tenant:</span>
-    <span th:text="${invoice.tenant.name}">Jane Smith</span>
-  </p>
-
-  <p>
-    <span class="label">Phone:</span>
-    <span th:text="${#strings.defaultString(invoice.tenant.phone, '-')}">081-222-3333</span>
-  </p>
-
-  <p>
-    <span class="label">Billing Month:</span>
-    <span th:text="${invoice.billingMonth}">9</span>/<span th:text="${invoice.billingYear}">2025</span>
-  </p>
-
-  <p>
-    <span class="label">Issue Date:</span>
-    <span th:text="${#temporals.format(invoice.issueDate,'dd/MM/yyyy')}">02/09/2025</span>
-  </p>
-
-  <p>
-    <span class="label">Due Date:</span>
-    <span th:text="${#temporals.format(invoice.dueDate,'dd/MM/yyyy')}">09/09/2025</span>
-  </p>
 
   <table>
     <thead>
       <tr>
-        <th>Description</th>
-        <th class="right">Units</th>
-        <th class="right">Rate</th>
-        <th class="right">Amount (Baht)</th>
+        <th>รายการ</th>
+        <th>จำนวนหน่วย</th>
+        <th>อัตรา</th>
+        <th>จำนวนเงิน (บาท)</th>
       </tr>
     </thead>
     <tbody>
-      <!-- Rent -->
       <tr th:if="${invoice.rentBaht != null}">
-        <td>Rent</td>
+        <td>ค่าเช่าห้องพัก</td>
         <td class="right">-</td>
         <td class="right">-</td>
-        <td class="right" th:text="${#numbers.formatDecimal(invoice.rentBaht, 1, 'COMMA', 2, 'POINT')}">7000.00</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.rentBaht, 1, 'COMMA', 2, 'POINT')}">7,000.00</td>
       </tr>
 
-      <!-- Electricity -->
       <tr th:if="${invoice.electricityBaht != null}">
         <td>
-          Electricity
+          ค่าไฟฟ้า
           <span class="muted"
                 th:if="${invoice.electricityUnits != null and invoice.electricityRate != null}"
-                th:text="'(' + ${invoice.electricityUnits} + ' × ' + ${invoice.electricityRate} + ')'">
-            (100 × 8.00)
-          </span>
+                th:text="'(' + ${invoice.electricityUnits} + ' × ' + ${invoice.electricityRate} + ')'">(100 × 8.00)</span>
         </td>
-        <td class="right" th:text="${invoice.electricityUnits != null ? invoice.electricityUnits : '-'}">100.00</td>
-        <td class="right" th:text="${invoice.electricityRate  != null ? invoice.electricityRate  : '-'}">8.00</td>
+        <td class="right" th:text="${invoice.electricityUnits != null ? invoice.electricityUnits : '-'}">100</td>
+        <td class="right" th:text="${invoice.electricityRate != null ? invoice.electricityRate : '-'}">8.00</td>
         <td class="right" th:text="${#numbers.formatDecimal(invoice.electricityBaht, 1, 'COMMA', 2, 'POINT')}">800.00</td>
       </tr>
 
-      <!-- Water -->
       <tr th:if="${invoice.waterBaht != null}">
         <td>
-          Water
+          ค่าน้ำประปา
           <span class="muted"
                 th:if="${invoice.waterUnits != null and invoice.waterRate != null}"
-                th:text="'(' + ${invoice.waterUnits} + ' × ' + ${invoice.waterRate} + ')'">
-            (3 × 18.00)
-          </span>
+                th:text="'(' + ${invoice.waterUnits} + ' × ' + ${invoice.waterRate} + ')'">(3 × 18.00)</span>
         </td>
-        <td class="right" th:text="${invoice.waterUnits != null ? invoice.waterUnits : '-'}">3.00</td>
-        <td class="right" th:text="${invoice.waterRate  != null ? invoice.waterRate  : '-'}">18.00</td>
+        <td class="right" th:text="${invoice.waterUnits != null ? invoice.waterUnits : '-'}">3</td>
+        <td class="right" th:text="${invoice.waterRate != null ? invoice.waterRate : '-'}">18.00</td>
         <td class="right" th:text="${#numbers.formatDecimal(invoice.waterBaht, 1, 'COMMA', 2, 'POINT')}">54.00</td>
       </tr>
 
-      <!-- Other -->
       <tr th:if="${invoice.otherBaht != null and invoice.otherBaht > 0}">
-        <td>Other</td>
+        <td>ค่าใช้จ่ายอื่น ๆ</td>
         <td class="right">-</td>
         <td class="right">-</td>
         <td class="right" th:text="${#numbers.formatDecimal(invoice.otherBaht, 1, 'COMMA', 2, 'POINT')}">50.00</td>
       </tr>
 
-      <!-- Common Fee -->
       <tr th:if="${invoice.commonFeeBaht != null and invoice.commonFeeBaht > 0}">
-        <td>Common Fee</td>
+        <td>ค่าส่วนกลาง</td>
         <td class="right">-</td>
         <td class="right">-</td>
-        <td class="right" th:text="${#numbers.formatDecimal(invoice.commonFeeBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.commonFeeBaht, 1, 'COMMA', 2, 'POINT')}">300.00</td>
       </tr>
 
-      <!-- Garbage Fee -->
       <tr th:if="${invoice.garbageFeeBaht != null and invoice.garbageFeeBaht > 0}">
-        <td>Garbage Fee</td>
+        <td>ค่าขยะ</td>
         <td class="right">-</td>
         <td class="right">-</td>
-        <td class="right" th:text="${#numbers.formatDecimal(invoice.garbageFeeBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.garbageFeeBaht, 1, 'COMMA', 2, 'POINT')}">30.00</td>
       </tr>
 
-      <!-- Maintenance (รวมของเดือน) -->
       <tr th:if="${invoice.maintenanceBaht != null and invoice.maintenanceBaht > 0}">
-        <td>Maintenance (monthly total)</td>
+        <td>ค่าซ่อมบำรุง (รวมเดือนนี้)</td>
         <td class="right">-</td>
         <td class="right">-</td>
         <td class="right" th:text="${#numbers.formatDecimal(invoice.maintenanceBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
@@ -151,17 +160,25 @@
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="3" class="total">Total</td>
+        <td colspan="3" class="right">รวมทั้งสิ้น</td>
         <td class="right" th:text="${#numbers.formatDecimal(invoice.totalBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
       </tr>
     </tfoot>
   </table>
 
-  <p class="status">
-    Status: <span th:text="${invoice.status}">PENDING</span>
-    <span th:if="${invoice.paidDate != null}">
-      • Paid on <span th:text="${#temporals.format(invoice.paidDate,'dd/MM/yyyy')}">05/09/2025</span>
-    </span>
-  </p>
+  <div class="summary">
+    <p>
+      สถานะ: <span th:text="${invoice.status}">PENDING</span>
+      <span th:if="${invoice.paidDate != null}">
+        • ชำระเมื่อ <span th:text="${#temporals.format(invoice.paidDate,'dd/MM/yyyy')}">05/09/2025</span>
+      </span>
+    </p>
+  </div>
+
+  <div class="signatures">
+    <div class="sign-box">ลายเซ็นผู้เช่า</div>
+    <div class="sign-box">ลายเซ็นผู้ดูแล</div>
+  </div>
+
 </body>
 </html>
