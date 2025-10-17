@@ -4,88 +4,189 @@
   <meta charset="utf-8"/>
   <title>สัญญาเช่าห้องพัก</title>
   <style>
-    @page { size: A4; margin: 14mm; }
-    body { font-family: "TH Sarabun New", Tahoma, Arial, sans-serif; font-size: 16pt; line-height: 1.5; color: #111; }
-    h2 { text-align: center; margin: 0 0 8mm; }
-    .row { display: flex; gap: 12px; align-items: baseline; }
-    .label { min-width: 120px; }
-    .underline { border-bottom: 1px dotted #333; display: inline-block; min-width: 160px; padding: 0 4px; }
-    .section { margin-top: 8mm; }
-    .muted { color: #555; }
-    .mt { margin-top: 6mm; }
-    .sign-row { display:flex; justify-content:space-between; margin-top: 16mm; }
-    .sign-box { text-align:center; width: 45%; }
-    .print-btn { position: fixed; right: 10mm; top: 10mm; }
+    /* หน้ากระดาษและตัวอักษร */
+    @page { size: A4; margin: 14mm 16mm; }
+    html, body {
+      font-family: "TH Sarabun New", "Noto Sans Thai", Tahoma, Arial, sans-serif;
+      font-size: 16pt;
+      color: #111;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    /* โครงหน้า */
+    h1 {
+      font-size: 22pt;
+      text-align: center;
+      margin: 0 0 6mm;
+      letter-spacing: .3pt;
+    }
+    .meta {
+      display: grid;
+      grid-template-columns: 140px 1fr;
+      gap: 6px 10px;
+      margin-bottom: 6mm;
+    }
+
+    /* เส้นกรอก */
+    .line {
+      display: inline-block;
+      min-width: 160px;
+      border-bottom: 1.5px dotted #333;
+      padding: 0 6px 2px;
+      line-height: 1.2;
+    }
+    .muted { color:#666; }
+    .section { margin-top: 7mm; }
+    .num { width: 28px; display: inline-block; }
+
+    /* รายการข้อสัญญา */
+    ol.clauses {
+      counter-reset: c;
+      list-style: none;
+      padding: 0;
+      margin: 0;
+    }
+    ol.clauses > li {
+      counter-increment: c;
+      margin: 2mm 0 2mm 0;
+      line-height: 1.55;
+    }
+    ol.clauses > li:before {
+      content: "ข้อ " counter(c) " ";
+      font-weight: 700;
+      margin-right: 2mm;
+    }
+
+    /* ลายเซ็น */
+    .sign-row {
+      display:flex;
+      justify-content:space-between;
+      gap: 10mm;
+      margin-top: 16mm;
+      page-break-inside: avoid;
+    }
+    .sign-box {
+      flex: 1 1 0;
+      text-align:center;
+    }
+    .sign-line {
+      margin-top: 18mm;
+      border-bottom: 1.5px solid #000;
+      width: 85%;
+      margin-left: auto;
+      margin-right: auto;
+      height: 0;
+    }
+    .sign-name {
+      margin-top: 4mm;
+    }
+
+    /* ปุ่มพิมพ์ */
+    .print-btn { position: fixed; right: 12mm; top: 10mm; }
     @media print { .print-btn { display: none; } }
+
+    /* กล่องหัวข้อบางส่วน */
+    .box {
+      border: 1px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 10px 12px;
+      background: #fafafa;
+    }
+    .grid-2 { display:grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; }
   </style>
 </head>
 <body>
   <button class="print-btn" onclick="window.print()">พิมพ์</button>
 
-  <h2>สัญญาเช่าห้องพัก</h2>
+  <h1>สัญญาเช่าห้องพัก</h1>
 
-  <div class="row">
-    <div class="label">วันที่ทำสัญญา</div>
-    <div class="underline" th:text="${#temporals.format(lease.startDate, 'dd/MM/yyyy')}">__/__/____</div>
+  <!-- ข้อมูลพื้นฐาน -->
+  <div class="meta">
+    <div>วันที่ทำสัญญา</div>
+    <div class="line" th:text="${#temporals.format(lease.startDate, 'dd/MM/yyyy')}">__/__/____</div>
+
+    <div>ผู้เช่า</div>
+    <div class="line" th:text="${lease.customName ?: tenant.name}">ชื่อผู้เช่า</div>
+
+    <div>เลขบัตร ปชช.</div>
+    <div class="line" th:text="${lease.customIdCard ?: '-'}">x-xxxx-xxxxx-xx-x</div>
+
+    <div>ที่อยู่ผู้เช่า</div>
+    <div class="line" th:text="${lease.customAddress ?: '-'}">ที่อยู่</div>
+
+    <div>ห้องเลขที่</div>
+    <div class="line" th:text="${room.number}">101</div>
   </div>
 
-  <div class="section">
-    <div class="row">
-      <div class="label">ผู้เช่า</div>
-      <div class="underline" th:text="${lease.customName ?: tenant.name}">ชื่อผู้เช่า</div>
+  <!-- รายละเอียดสัญญา -->
+  <div class="section box">
+    <div class="grid-2">
+      <div>
+        เริ่มสัญญา:
+        <span class="line" th:text="${#temporals.format(lease.startDate, 'dd/MM/yyyy')}">__/__/____</span>
+      </div>
+      <div>
+        สิ้นสุดสัญญา:
+        <span class="line"
+              th:text="${lease.endDate != null ? #temporals.format(lease.endDate, 'dd/MM/yyyy') : 'ไม่มีกำหนด'}">
+          ไม่มีกำหนด
+        </span>
+      </div>
+
+      <div>
+        ค่าเช่ารายเดือน:
+        <span class="line"
+              th:text="${lease.monthlyRent != null ? #numbers.formatDecimal(lease.monthlyRent, 0, 'COMMA', 2, 'POINT') : '-'}">
+          0.00
+        </span> บาท
+      </div>
+      <div>
+        เงินมัดจำ:
+        <span class="line"
+              th:text="${lease.depositBaht != null ? #numbers.formatDecimal(lease.depositBaht, 0, 'COMMA', 2, 'POINT') : '-'}">
+          0.00
+        </span> บาท
+      </div>
     </div>
-    <div class="row">
-      <div class="label">เลขบัตร ปชช.</div>
-      <div class="underline" th:text="${lease.customIdCard ?: '-'}">x-xxxx-xxxxx-xx-x</div>
-    </div>
-    <div class="row">
-      <div class="label">ที่อยู่</div>
-      <div class="underline" th:text="${lease.customAddress ?: '-'}">ที่อยู่</div>
-    </div>
-    <div class="row mt">
-      <div class="label">ห้องเลขที่</div>
-      <div class="underline" th:text="${room.number}">___</div>
+    <div class="muted" style="margin-top:4mm">
+      * ค่าเช่าชำระภายในวันที่กำหนดของทุกเดือน เว้นแต่จะตกลงเป็นอย่างอื่น
     </div>
   </div>
 
+  <!-- เงื่อนไข -->
   <div class="section">
-    <div class="row">
-      <div class="label">เริ่มสัญญา</div>
-      <div class="underline" th:text="${#temporals.format(lease.startDate, 'dd/MM/yyyy')}">__/__/____</div>
-    </div>
-    <div class="row">
-      <div class="label">สิ้นสุดสัญญา</div>
-      <div class="underline" th:text="${lease.endDate != null ? #temporals.format(lease.endDate, 'dd/MM/yyyy') : 'ไม่มีกำหนด'}">__/__/____</div>
-    </div>
-    <div class="row">
-      <div class="label">ค่าเช่ารายเดือน</div>
-      <div class="underline" th:text="${lease.monthlyRent != null ? #numbers.formatDecimal(lease.monthlyRent, 0, 'COMMA', 2, 'POINT') : '-'}">0.00</div>
-      <span>บาท</span>
-    </div>
-    <div class="row">
-      <div class="label">เงินมัดจำ</div>
-      <div class="underline" th:text="${lease.depositBaht != null ? #numbers.formatDecimal(lease.depositBaht, 0, 'COMMA', 2, 'POINT') : '-'}">0.00</div>
-      <span>บาท</span>
-    </div>
-  </div>
+    <ol class="clauses">
+      <li>ผู้เช่าตกลงชำระค่าเช่าและค่าใช้จ่ายอื่น ๆ ให้ครบถ้วนภายในกำหนด หากผิดนัดให้ชำระดอกเบี้ยและค่าปรับตามที่ผู้ให้เช่ากำหนดอย่างสมเหตุสมผล</li>
+      <li>ผู้เช่าจะดูแลรักษาห้องและทรัพย์สินให้คงสภาพ หากชำรุดเสียหายอันเกิดจากการใช้งานของผู้เช่า ให้ผู้เช่ารับผิดชอบค่าใช้จ่ายในการซ่อมแซม</li>
+      <li>ห้ามดัดแปลง ต่อเติม ทำลาย หรือกระทำการใด ๆ ที่ผิดกฎหมายภายในห้องเช่า เว้นแต่ได้รับความยินยอมเป็นหนังสือล่วงหน้า</li>
+      <li>เมื่อย้ายออก ผู้เช่าจะคืนห้องโดยสภาพเรียบร้อย หากมีค่าใช้จ่ายค้างชำระ ผู้ให้เช่ามีสิทธินำเงินมัดจำหักกลบลบหนี้ได้</li>
+      <li>ข้อกำหนดอื่น ๆ: 
+        <span th:text="${lease.customRules ?: '—'}">—</span>
+      </li>
+    </ol>
 
-  <div class="section">
-    <div class="label">เงื่อนไข/กฎ</div>
-    <div class="mt" th:text="${lease.customRules ?: '—'}">—</div>
-    <div class="mt muted" th:if="${lease.notes}">
+    <div class="muted" th:if="${lease.notes}" style="margin-top: 3mm;">
       หมายเหตุ: <span th:text="${lease.notes}"></span>
     </div>
   </div>
 
+  <!-- ลายเซ็น -->
   <div class="sign-row">
     <div class="sign-box">
-      ลงชื่อ ________________________________ ผู้ให้เช่า<br/><br/>
-      ( ________________________________ )
+      <div class="sign-line"></div>
+      ( ผู้ให้เช่า )
     </div>
     <div class="sign-box">
-      ลงชื่อ ________________________________ ผู้เช่า<br/><br/>
+      <div class="sign-line"></div>
       ( <span th:text="${lease.customName ?: tenant.name}">ชื่อผู้เช่า</span> )
     </div>
+  </div>
+
+  <!-- วันที่ลงนาม -->
+  <div style="text-align:right; margin-top: 8mm;">
+    ลงนาม ณ วันที่
+    <span class="line" th:text="${#temporals.format(lease.startDate, 'dd/MM/yyyy')}">__/__/____</span>
   </div>
 </body>
 </html>

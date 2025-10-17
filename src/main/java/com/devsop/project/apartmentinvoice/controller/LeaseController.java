@@ -6,26 +6,28 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable; 
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.devsop.project.apartmentinvoice.entity.Lease;
 import com.devsop.project.apartmentinvoice.entity.Lease.Status;
 import com.devsop.project.apartmentinvoice.entity.Room;
 import com.devsop.project.apartmentinvoice.entity.Tenant;
 import com.devsop.project.apartmentinvoice.repository.LeaseRepository;
+import com.devsop.project.apartmentinvoice.repository.RoomRepository;
 import com.devsop.project.apartmentinvoice.service.LeaseService;
 
-import jakarta.validation.Valid;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -39,6 +41,7 @@ public class LeaseController {
 
   private final LeaseRepository leaseRepo;
   private final LeaseService leaseService;
+  private final RoomRepository roomRepo;
 
   // ---------------------- DTOs ----------------------
 
@@ -156,30 +159,124 @@ public class LeaseController {
 
   // ---------------------- Create / Update / End / Settle ----------------------
 
+  /**
+   * รองรับ payload หลายรูปแบบ:
+   * - legacy: { "tenantId":1, "roomId":10, "startDate":"2025-10-17" }
+   * - แบบ nested: { "tenant":{"id":1}, "room":{"id":10} | {"number":101}, "startDate":"..." }
+   * - แบบใช้เลขห้อง: { "tenantId":1, "roomNumber":101, "startDate":"..." }
+   * พร้อมฟิลด์เสริม: monthlyRent, depositBaht, customName, customIdCard, customAddress, customRules
+   */
   @PostMapping
-  public LeaseView create(@Valid @RequestBody Lease draft) {
-    return toView(leaseService.createLease(draft));
+  public ResponseEntity<LeaseView> create(@RequestBody CreateLeaseRequest req) {
+    // ----- resolve tenantId -----
+    Long tenantId = req.getTenantId();
+    if (tenantId == null && req.getTenant() != null) {
+      tenantId = req.getTenant().getId();
+    }
+
+    // ----- resolve ห้อง: roomId หรือ roomNumber -----
+    Long roomId = req.getRoomId();
+    Integer roomNumber = null;
+
+    if (roomId == null) {
+      // จาก object room
+      if (req.getRoom() != null) {
+        if (req.getRoom().getId() != null) {
+          roomId = req.getRoom().getId();
+        } else {
+          roomNumber = req.getRoom().getNumber();
+        }
+      }
+      // จาก field ตรง ๆ
+      if (roomId == null && roomNumber == null) {
+        roomNumber = req.getRoomNumber();
+      }
+      // แปลง roomNumber -> roomId เผื่อเคสที่ service เวอร์ชันนี้ต้องการ id
+      if (roomId == null && roomNumber != null) {
+        Room r = roomRepo.findByNumber(roomNumber)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.BAD_REQUEST, "Room number not found"));
+        roomId = r.getId();
+      }
+    }
+
+    if (tenantId == null || roomId == null || req.getStartDate() == null) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST,
+          "tenantId, roomId/roomNumber and startDate are required");
+    }
+
+    // ---- ประกอบ draft เพื่อให้เก็บฟิลด์เสริมตั้งแต่แรก
+    Tenant t = new Tenant(); t.setId(tenantId);
+    Room r = new Room();
+    r.setId(roomId);                  // ใช้ id ที่ resolve แล้ว
+    if (roomNumber != null) r.setNumber(roomNumber); // แนบ number ถ้ามี (ไม่บังคับ)
+
+    Lease draft = Lease.builder()
+        .tenant(t)
+        .room(r)
+        .startDate(req.getStartDate())
+        .monthlyRent(req.getMonthlyRent())
+        .depositBaht(req.getDepositBaht())
+        .customName(req.getCustomName())
+        .customIdCard(req.getCustomIdCard())
+        .customAddress(req.getCustomAddress())
+        .customRules(req.getCustomRules())
+        .build();
+
+    Lease lease = leaseService.createLease(draft);
+    return ResponseEntity.status(201).body(toView(lease));
+  }
+
+  @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+  public static class CreateLeaseRequest {
+    // แบบ legacy
+    private Long tenantId;
+    private Long roomId;
+    // แบบใช้เลขห้องตรง ๆ
+    private Integer roomNumber;
+    // แบบ nested
+    private Ref room;
+    private Ref tenant;
+
+    private LocalDate startDate;
+
+    // ฟิลด์เสริม
+    private BigDecimal monthlyRent;
+    private BigDecimal depositBaht;
+    private String customName;
+    private String customIdCard;
+    private String customAddress;
+    private String customRules;
+
+    @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+    public static class Ref {
+      private Long id;
+      private Integer number; // สำหรับ room เท่านั้น
+    }
   }
 
   @PutMapping("/{id}")
   public LeaseView update(@PathVariable Long id, @RequestBody Lease patch) {
     return toView(leaseService.updateLease(id, patch));
   }
-  
-  @PostMapping("/{id}/end")
-  public LeaseView end(@PathVariable Long id,
-                       @RequestParam(required = false)
-                       @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate endDate) {
-    return toView(leaseService.endLease(id, endDate));
+
+  @PutMapping("/{id}/end")
+  public ResponseEntity<LeaseView> end(@PathVariable Long id, @RequestBody EndLeaseRequest req) {
+    Lease lease = leaseService.endLease(id, req.getEndDate());
+    return ResponseEntity.ok(toView(lease));
   }
-  
+
+  @Getter @Setter @NoArgsConstructor @AllArgsConstructor
+  public static class EndLeaseRequest {
+    private LocalDate endDate;
+  }
+
   @PostMapping("/{id}/settle")
   public LeaseView settle(@PathVariable Long id,
                           @RequestParam(required = false)
                           @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
     return toView(leaseService.settleLease(id, date));
   }
-  
+
   @DeleteMapping("/{id}")
   public void delete(@PathVariable Long id) {
     leaseRepo.deleteById(id);
