@@ -189,20 +189,45 @@ public class LeaseService {
 
     // ย้ายห้อง (รับทั้ง id หรือ number)
     if (patch.getRoom() != null && (patch.getRoom().getId() != null || patch.getRoom().getNumber() != null)) {
-      Room r;
-      if (patch.getRoom().getNumber() != null) {
-        r = roomRepo.findByNumber(patch.getRoom().getNumber())
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Room number " + patch.getRoom().getNumber() + " not found"));
-      } else {
-        r = roomRepo.findById(patch.getRoom().getId())
-            .orElseThrow(() -> new ResponseStatusException(
-                HttpStatus.NOT_FOUND, "Room id " + patch.getRoom().getId() + " not found"));
-      }
-      l.setRoom(r);
+        Room newRoom;
+
+        if (patch.getRoom().getNumber() != null) {
+            newRoom = roomRepo.findByNumber(patch.getRoom().getNumber())
+                .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Room number " + patch.getRoom().getNumber() + " not found"));
+        } else {
+            newRoom = roomRepo.findById(patch.getRoom().getId())
+                .orElseThrow(() -> new ResponseStatusException(
+                    HttpStatus.NOT_FOUND, "Room id " + patch.getRoom().getId() + " not found"));
+        }
+
+        // ✅ Free the old room first if it exists and is different
+        Room oldRoom = l.getRoom();
+        if (oldRoom != null && !oldRoom.getId().equals(newRoom.getId())) {
+            oldRoom.setStatus("FREE");
+            oldRoom.setTenant(null);
+            roomRepo.save(oldRoom);
+        }
+
+        // ✅ Assign the new room
+        l.setRoom(newRoom);
+    }
+
+    // ✅ Sync room status + tenant after edit
+    if (l.getRoom() != null) {
+        Room room = l.getRoom();
+        if (l.getTenant() != null) {
+            room.setStatus("OCCUPIED");
+            room.setTenant(l.getTenant());
+        } else {
+            room.setStatus("FREE");
+            room.setTenant(null);
+        }
+        roomRepo.save(room);
     }
 
     return leaseRepo.save(l);
+
   }
 
   @Transactional
@@ -236,22 +261,38 @@ public class LeaseService {
   }
 
     /**
-   * Delete lease and cleanup room state if lease was ACTIVE.
+   * Delete lease and cleanup linked room state reliably.
    */
   @Transactional
   public void deleteLease(Long id) {
     Lease l = leaseRepo.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease id " + id + " not found"));
 
-    // if this lease is ACTIVE, clear room occupancy
-    if (l.getStatus() == Status.ACTIVE && l.getRoom() != null) {
-      Room room = l.getRoom();
-      room.setStatus("FREE");
-      room.setTenant(null);
-      roomRepo.save(room);
+    // Determine linked room id (safe even if l.getRoom() is a lazy proxy or detached)
+    Long roomId = null;
+    if (l.getRoom() != null) {
+      try {
+        roomId = l.getRoom().getId();
+      } catch (Exception ex) {
+        roomId = null;
+      }
     }
 
+    // If we have a room id, fetch the canonical Room entity from roomRepo and clear it
+    if (roomId != null) {
+      Room room = roomRepo.findById(roomId)
+          .orElse(null);
+      if (room != null) {
+        room.setStatus("FREE");
+        room.setTenant(null);
+        roomRepo.save(room); // save before deleting lease to ensure DB state is consistent
+      }
+    }
+
+    // Finally remove the lease
     leaseRepo.delete(l);
   }
+
+
 
 }

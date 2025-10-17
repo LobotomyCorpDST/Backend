@@ -278,9 +278,9 @@ public class LeaseController {
     return toView(leaseService.settleLease(id, date));
   }
 
-  @DeleteMapping("/{id}")
+    @DeleteMapping("/{id}")
   public void delete(@PathVariable Long id) {
-    leaseRepo.deleteById(id);
+    leaseService.deleteLease(id);
   }
 
     @PatchMapping("/{id}")
