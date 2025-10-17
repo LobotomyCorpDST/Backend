@@ -47,13 +47,10 @@ pipeline {
               sh '''
                 set -e
                 export KUBECONFIG="${KUBECONFIG_FILE}"
-
                 kubectl apply -n ${K8S_NAMESPACE} -f k8s/deployment.yaml
                 kubectl apply -n ${K8S_NAMESPACE} -f k8s/service-nodeport.yaml
-
                 kubectl -n ${K8S_NAMESPACE} rollout restart deploy/${BACK_DEPLOY}
                 kubectl -n ${K8S_NAMESPACE} rollout status deploy/${BACK_DEPLOY} --timeout=180s
-
                 kubectl -n ${K8S_NAMESPACE} get svc backend -o wide || true
               '''
             }

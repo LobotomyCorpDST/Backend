@@ -1,9 +1,7 @@
 resources:
   - deployment.yaml
   - service-nodeport.yaml
-
 images:
   - name: mmmmnl/lobotomy
     newTag: latest
-
 namespace: doomed-apt
