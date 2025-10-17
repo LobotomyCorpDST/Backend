@@ -2,6 +2,8 @@ package com.devsop.project.apartmentinvoice.controller;
 
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -10,6 +12,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.devsop.project.apartmentinvoice.entity.Tenant;
 import com.devsop.project.apartmentinvoice.repository.TenantRepository;
@@ -21,24 +24,61 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/tenants")
 @RequiredArgsConstructor
 public class TenantController {
+
   private final TenantRepository repo;
 
-  @GetMapping public List<Tenant> all() { return repo.findAll(); }
+  // ---------------------- Query ----------------------
 
-  @PostMapping public Tenant create(@Valid @RequestBody Tenant t) { return repo.save(t); }
+  /**
+   * ดึงผู้เช่าทั้งหมด
+   */
+  @GetMapping
+  public List<Tenant> all() {
+    return repo.findAll();
+  }
 
+  /**
+   * ดึงผู้เช่ารายเดียวตาม ID (ใช้ในหน้า Lease เพื่อ auto-fill)
+   */
+  @GetMapping("/{id}")
+  public ResponseEntity<Tenant> getOne(@PathVariable Long id) {
+    return repo.findById(id)
+        .map(ResponseEntity::ok)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+  }
+
+  // ---------------------- Create / Update / Delete ----------------------
+
+  /**
+   * เพิ่มผู้เช่าใหม่
+   */
+  @PostMapping
+  public ResponseEntity<Tenant> create(@Valid @RequestBody Tenant t) {
+    Tenant saved = repo.save(t);
+    return ResponseEntity.status(HttpStatus.CREATED).body(saved);
+  }
+
+  /**
+   * อัปเดตข้อมูลผู้เช่า (เช่น ชื่อ, เบอร์โทร, ที่อยู่ ฯลฯ)
+   */
   @PutMapping("/{id}")
   public Tenant update(@PathVariable Long id, @Valid @RequestBody Tenant t) {
+    if (!repo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found");
+    }
     t.setId(id);
     return repo.save(t);
   }
 
+  /**
+   * ลบผู้เช่า
+   */
   @DeleteMapping("/{id}")
-  public void delete(@PathVariable Long id) { repo.deleteById(id); }
-}
-
-@GetMapping("/{id}")
-public Tenant findById(@PathVariable Long id) {
-    return repo.findById(id)
-            .orElseThrow(() -> new ResponseStatusException(org.springframework.http.HttpStatus.NOT_FOUND));
+  public ResponseEntity<Void> delete(@PathVariable Long id) {
+    if (!repo.existsById(id)) {
+      throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found");
+    }
+    repo.deleteById(id);
+    return ResponseEntity.noContent().build();
+  }
 }
