@@ -17,12 +17,12 @@ pipeline {
         }
         stage('Build') {
             steps {
-                sh 'docker build . -t mmmmnl/lobotomycorp:v.0.0'
+                bat 'docker build . -t mmmmnl/lobotomycorp:v.0.0'
             }
         }
         stage('List image') {
             steps {
-                sh 'docker images'
+                bat 'docker images'
             }
         }
         stage('Login Docker Hub') {
@@ -30,7 +30,7 @@ pipeline {
                 withCredentials([usernamePassword(credentialsId: 'docker-hub-creds',
                                                  usernameVariable: 'DOCKERHUB_USERNAME',
                                                  passwordVariable: 'DOCKERHUB_PASSWORD')]) {
-                    sh '''
+                    bat '''
                         echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin
                     '''
                 }
@@ -38,13 +38,13 @@ pipeline {
         }
         stage('Push image') {
             steps {
-                sh 'docker push mmmmnl/lobotomycorp:v.0.0'
+                bat 'docker push mmmmnl/lobotomycorp:v.0.0'
             }
         }
         stage('Deploy Backend to K8s') {
           steps {
             withCredentials([file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG_FILE')]) {
-              sh '''
+              bat '''
                 set -e
                 export KUBECONFIG="${KUBECONFIG_FILE}"
                 kubectl apply -n ${K8S_NAMESPACE} -f k8s/deployment.yaml
