@@ -48,8 +48,12 @@ pipeline {
         stage('Login & Push image') {
           steps {
             withCredentials([
-              file(credentialsId: 'backend-env-file', variable: 'ENV_FILE'),
-              string(credentialsId: 'dockerhub-token', variable: 'DOCKERHUB_TOKEN')
+               file(credentialsId: 'backend-env-file', variable: 'ENV_FILE'),
+               usernamePassword(
+                  credentialsId: 'docker-hub-creds',
+                   usernameVariable: 'DOCKERHUB_USERNAME',
+                    passwordVariable: 'DOCKERHUB_PASSWORD'
+               )
             ]) {
               bat '''
                 setlocal EnableExtensions EnableDelayedExpansion
@@ -71,7 +75,7 @@ pipeline {
 
                 echo [DEBUG] IMAGE_NAME=%IMAGE_NAME%
 
-                echo %DOCKERHUB_TOKEN% | docker login -u mmmmnl --password-stdin
+                echo %DOCKERHUB_PASSWORD% | docker login -u %DOCKERHUB_USERNAME% --password-stdin
                 if errorlevel 1 exit /b 1
 
                 docker push %IMAGE_NAME%
