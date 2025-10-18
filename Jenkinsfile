@@ -10,16 +10,12 @@ pipeline {
 
         stage('Compute Tag') {
           steps {
-            withCredentials([
-                file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')
-            ])
-            {
-                bat 'for /f %%i in (\'git rev-parse --short HEAD ^|^| echo %BUILD_NUMBER%\') do echo %%i > tag.txt'
-                script { env.IMAGE_TAG = readFile('tag.txt').trim() }
-                echo "IMAGE_TAG=%IMAGE_TAG%"
-            }
+            bat 'for /f %%i in (\'git rev-parse --short HEAD ^|^| echo %BUILD_NUMBER%\') do echo %%i > tag.txt'
+            script { env.IMAGE_TAG = readFile('tag.txt').trim() }
+            echo "IMAGE_TAG=${env.IMAGE_TAG}"
           }
         }
+
 
         stage('Build image') {
           steps {
