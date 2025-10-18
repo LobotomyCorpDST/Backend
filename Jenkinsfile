@@ -131,7 +131,8 @@ pipeline {
 
                   echo.
                   echo === DEBUG: recent events ===
-                  kubectl -n %K8S_NAMESPACE% get events --sort-by=.lastTimestamp | tail -n 80
+                  kubectl -n %K8S_NAMESPACE% get events --sort-by=.metadata.creationTimestamp > events.txt
+                  powershell -NoProfile -Command "Get-Content -Path 'events.txt' -Tail 80"
 
                   echo.
                   echo === DEBUG: describe deployment ===
