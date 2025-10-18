@@ -224,6 +224,71 @@ public class InvoiceController {
     return repo.save(inv);
   }
 
+
+    // ---------- Edit & Delete ----------
+
+  /** Edit invoice basic fields */
+  @PatchMapping("/{id}")
+public Invoice update(@PathVariable Long id, @RequestBody Invoice patch) {
+  Invoice inv = repo.findById(id)
+      .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
+
+  if (patch.getBillingYear() != null) inv.setBillingYear(patch.getBillingYear());
+  if (patch.getBillingMonth() != null) inv.setBillingMonth(patch.getBillingMonth());
+  if (patch.getIssueDate() != null) inv.setIssueDate(patch.getIssueDate());
+  if (patch.getDueDate() != null) inv.setDueDate(patch.getDueDate());
+
+  // ✅ Update core numeric fields
+  if (patch.getElectricityUnits() != null) inv.setElectricityUnits(patch.getElectricityUnits());
+  if (patch.getElectricityRate() != null) inv.setElectricityRate(patch.getElectricityRate());
+  if (patch.getWaterUnits() != null) inv.setWaterUnits(patch.getWaterUnits());
+  if (patch.getWaterRate() != null) inv.setWaterRate(patch.getWaterRate());
+  if (patch.getOtherBaht() != null) inv.setOtherBaht(patch.getOtherBaht());
+  if (patch.getRentBaht() != null) inv.setRentBaht(patch.getRentBaht());
+  if (patch.getCommonFeeBaht() != null) inv.setCommonFeeBaht(patch.getCommonFeeBaht());
+  if (patch.getGarbageFeeBaht() != null) inv.setGarbageFeeBaht(patch.getGarbageFeeBaht());
+  if (patch.getMaintenanceBaht() != null) inv.setMaintenanceBaht(patch.getMaintenanceBaht());
+
+  // ✅ Auto-recalculate dependent amounts
+  if (inv.getElectricityUnits() != null && inv.getElectricityRate() != null) {
+    inv.setElectricityBaht(inv.getElectricityUnits().multiply(inv.getElectricityRate()));
+  }
+  if (inv.getWaterUnits() != null && inv.getWaterRate() != null) {
+    inv.setWaterBaht(inv.getWaterUnits().multiply(inv.getWaterRate()));
+  }
+
+  // ✅ Always recompute total
+  java.math.BigDecimal total = java.math.BigDecimal.ZERO;
+  total = total.add(sum(inv.getRentBaht()));
+  total = total.add(sum(inv.getElectricityBaht()));
+  total = total.add(sum(inv.getWaterBaht()));
+  total = total.add(sum(inv.getOtherBaht()));
+  total = total.add(sum(inv.getCommonFeeBaht()));
+  total = total.add(sum(inv.getGarbageFeeBaht()));
+  total = total.add(sum(inv.getMaintenanceBaht()));
+  inv.setTotalBaht(total);
+
+  return repo.save(inv);
+}
+
+
+  /** Delete invoice (with FK protection) */
+  @org.springframework.web.bind.annotation.DeleteMapping("/{id}")
+  public void delete(@PathVariable Long id) {
+    Invoice inv = repo.findById(id)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
+
+    try {
+      repo.delete(inv);
+    } catch (org.springframework.dao.DataIntegrityViolationException e) {
+      // ✅ Provide a clear human-readable error message for FK constraint
+      throw new ResponseStatusException(
+          HttpStatus.CONFLICT,
+          "Cannot delete invoice because it is linked to another record (e.g., payment or maintenance)."
+      );
+    }
+  }
+
   // ---------- Error handling ----------
 
   @ExceptionHandler(IllegalArgumentException.class)
