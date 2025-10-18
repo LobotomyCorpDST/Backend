@@ -22,49 +22,55 @@ pipeline {
             withCredentials([file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')]) {
               bat '''
                 setlocal EnableExtensions EnableDelayedExpansion
-
-                REM โหลด key=value จากไฟล์ env เข้าเป็นตัวแปรสภาพแวดล้อม
                 for /f "usebackq tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
-                  if not "%%~A"=="" (
-                    set "K=%%~A"
-                    set "V=%%~B"
-                    REM ตัดเครื่องหมาย quote รอบค่าถ้ามี
-                    set "V=!V:\\"="!"
-                    if /i not "!K!"=="" set "!K!=!V!"
-                  )
+                  if not "%%~A"=="" set "%%~A=%%~B"
                 )
 
-                echo BACK_IMAGE_REPO=%BACK_IMAGE_REPO%
-                echo IMAGE_TAG=%IMAGE_TAG%
-                if "%BACK_IMAGE_REPO%"=="" ( echo [ERR] BACK_IMAGE_REPO is empty & exit /b 1 )
-                if "%IMAGE_TAG%"=="" ( echo [ERR] IMAGE_TAG is empty & exit /b 1 )
+                if "%IMAGE_TAG%"=="" (
+                  for /f %%i in ('git rev-parse --short HEAD ^|^| echo %BUILD_NUMBER%') do set IMAGE_TAG=%%i
+                )
+                set IMAGE_NAME=%BACK_IMAGE_REPO%:%IMAGE_TAG%
 
-                docker build -t %BACK_IMAGE_REPO%:%IMAGE_TAG% .
+                echo [DEBUG] %IMAGE_NAME%
+                if "%BACK_IMAGE_REPO%"=="" exit /b 1
+                if "%IMAGE_TAG%"=="" exit /b 1
+
+                docker build -t %IMAGE_NAME% .
               '''
             }
           }
         }
 
-
         stage('List image') {
           steps { bat 'docker images' }
         }
 
-        stage('Login Docker Hub & Push') {
+        stage('Login & Push image') {
           steps {
             withCredentials([
-              usernamePassword(
-                  credentialsId: 'docker-hub-creds',
-                  usernameVariable: 'DOCKERHUB_USERNAME',
-                  passwordVariable: 'DOCKERHUB_PASSWORD'
-              ),
-              file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')
+              file(credentialsId: 'backend-env-file', variable: 'ENV_FILE'),
+              string(credentialsId: 'dockerhub-token', variable: 'DOCKERHUB_TOKEN')
             ]) {
-              bat """
-                docker logout
-                echo %DOCKERHUB_PASSWORD% | docker login -u %DOCKERHUB_USERNAME% --password-stdin
-                docker push %BACK_IMAGE_REPO%:%IMAGE_TAG%
-              """
+              bat '''
+                setlocal EnableExtensions EnableDelayedExpansion
+                for /f "usebackq tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
+                  if not "%%~A"=="" set "%%~A=%%~B"
+                )
+
+                if "%IMAGE_TAG%"=="" (
+                  for /f %%i in ('git rev-parse --short HEAD ^|^| echo %BUILD_NUMBER%') do set IMAGE_TAG=%%i
+                )
+                set IMAGE_NAME=%BACK_IMAGE_REPO%:%IMAGE_TAG%
+
+                echo %DOCKERHUB_TOKEN% | docker login -u mmmmnl --password-stdin
+                if errorlevel 1 exit /b 1
+
+                echo [DEBUG] Pushing %IMAGE_NAME%
+                if "%BACK_IMAGE_REPO%"=="" exit /b 1
+                if "%IMAGE_TAG%"=="" exit /b 1
+
+                docker push %IMAGE_NAME%
+              '''
             }
           }
         }
