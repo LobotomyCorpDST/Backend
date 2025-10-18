@@ -10,7 +10,6 @@ pipeline {
 
         stage('Compute Tag') {
           steps {
-            // คำนวณ IMAGE_TAG = git short SHA (fallback เป็น BUILD_NUMBER)
             bat 'for /f %%i in (\'git rev-parse --short HEAD ^|^| echo %BUILD_NUMBER%\') do echo %%i > tag.txt'
             script { env.IMAGE_TAG = readFile('tag.txt').trim() }
             echo "IMAGE_TAG=${env.IMAGE_TAG}"
@@ -19,8 +18,10 @@ pipeline {
 
         stage('Build image') {
           steps {
-            // *** ปรับให้ชื่อ image ตรงกับ BACK_IMAGE_REPO + IMAGE_TAG ***
-            bat 'docker build . -t %BACK_IMAGE_REPO%:%IMAGE_TAG%'
+            withCredentials([
+              file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')
+            ])
+            bat 'docker build . -t %BACK_IMAGE_REPO%:v.1.0'
           }
         }
 
@@ -30,15 +31,18 @@ pipeline {
 
         stage('Login Docker Hub & Push') {
           steps {
-            withCredentials([usernamePassword(
-              credentialsId: 'docker-hub-creds',
-              usernameVariable: 'DOCKERHUB_USERNAME',
-              passwordVariable: 'DOCKERHUB_PASSWORD'
-            )]) {
+            withCredentials([
+              usernamePassword(
+                  credentialsId: 'docker-hub-creds',
+                  usernameVariable: 'DOCKERHUB_USERNAME',
+                  passwordVariable: 'DOCKERHUB_PASSWORD'
+              ),
+              file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')
+            ]) {
               bat """
                 docker logout
                 echo %DOCKERHUB_PASSWORD% | docker login -u %DOCKERHUB_USERNAME% --password-stdin
-                docker push %BACK_IMAGE_REPO%:%IMAGE_TAG%
+                docker push %BACK_IMAGE_REPO%:v.1.0
               """
             }
           }
@@ -46,10 +50,9 @@ pipeline {
 
         stage('Deploy Backend to K8s') {
           steps {
-            // ถ้าคุณเก็บค่า env ใน secret file (แนะนำ) ให้เพิ่มไฟล์นี้เข้า credentials ID: backend-env-file
             withCredentials([
               file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG_FILE'),
-              file(credentialsId: 'backend-env-file', variable: 'ENV_FILE') // ถ้าไม่ใช้ ก็ลบออกได้
+              file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')
             ]) {
               bat """
                 REM --- Load env vars from secret file (ถ้ามี) ---
