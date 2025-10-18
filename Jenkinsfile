@@ -53,21 +53,26 @@ pipeline {
             ]) {
               bat '''
                 setlocal EnableExtensions EnableDelayedExpansion
+
+                REM --- โหลด key=value จากไฟล์ env ---
                 for /f "usebackq tokens=1,* delims==" %%A in ("%ENV_FILE%") do (
                   if not "%%~A"=="" set "%%~A=%%~B"
                 )
 
+                REM --- ตั้งค่า IMAGE_TAG ถ้าไม่มากับไฟล์ ให้เอา git short hash ---
                 if "%IMAGE_TAG%"=="" (
                   for /f %%i in ('git rev-parse --short HEAD ^|^| echo %BUILD_NUMBER%') do set IMAGE_TAG=%%i
                 )
+
+                if "%BACK_IMAGE_REPO%"=="" ( echo [ERR] BACK_IMAGE_REPO is empty & exit /b 1 )
+                if "%IMAGE_TAG%"=="" ( echo [ERR] IMAGE_TAG is empty & exit /b 1 )
+
                 set IMAGE_NAME=%BACK_IMAGE_REPO%:%IMAGE_TAG%
+
+                echo [DEBUG] IMAGE_NAME=%IMAGE_NAME%
 
                 echo %DOCKERHUB_TOKEN% | docker login -u mmmmnl --password-stdin
                 if errorlevel 1 exit /b 1
-
-                echo [DEBUG] Pushing %IMAGE_NAME%
-                if "%BACK_IMAGE_REPO%"=="" exit /b 1
-                if "%IMAGE_TAG%"=="" exit /b 1
 
                 docker push %IMAGE_NAME%
               '''
