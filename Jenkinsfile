@@ -10,9 +10,14 @@ pipeline {
 
         stage('Compute Tag') {
           steps {
-            bat 'for /f %%i in (\'git rev-parse --short HEAD ^|^| echo %BUILD_NUMBER%\') do echo %%i > tag.txt'
-            script { env.IMAGE_TAG = readFile('tag.txt').trim() }
-            echo "IMAGE_TAG=${env.IMAGE_TAG}"
+            withCredentials([
+                file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')
+            ])
+            {
+                bat 'for /f %%i in (\'git rev-parse --short HEAD ^|^| echo %BUILD_NUMBER%\') do echo %%i > tag.txt'
+                script { env.IMAGE_TAG = readFile('tag.txt').trim() }
+                echo "IMAGE_TAG=%IMAGE_TAG%"
+            }
           }
         }
 
@@ -21,11 +26,10 @@ pipeline {
             withCredentials([
               file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')
             ]) {
-              bat 'docker build . -t %BACK_IMAGE_REPO%:v.1.0'
+              bat 'docker build . -t %BACK_IMAGE_REPO%:%IMAGE_TAG%'
             }
           }
         }
-
 
         stage('List image') {
           steps { bat 'docker images' }
@@ -44,7 +48,7 @@ pipeline {
               bat """
                 docker logout
                 echo %DOCKERHUB_PASSWORD% | docker login -u %DOCKERHUB_USERNAME% --password-stdin
-                docker push %BACK_IMAGE_REPO%:v.1.0
+                docker push %BACK_IMAGE_REPO%:%IMAGE_TAG%
               """
             }
           }
