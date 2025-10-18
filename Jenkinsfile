@@ -20,10 +20,12 @@ pipeline {
           steps {
             withCredentials([
               file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')
-            ])
-            bat 'docker build . -t %BACK_IMAGE_REPO%:v.1.0'
+            ]) {
+              bat 'docker build . -t %BACK_IMAGE_REPO%:v.1.0'
+            }
           }
         }
+
 
         stage('List image') {
           steps { bat 'docker images' }
