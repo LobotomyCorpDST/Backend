@@ -122,43 +122,6 @@ pipeline {
               kubectl apply -n %K8S_NAMESPACE% -f k8s\\deployment.yaml
               kubectl apply -n %K8S_NAMESPACE% -f k8s\\service-nodeport.yaml
             )
-
-            REM --- ensure image tag ---
-            kubectl -n %K8S_NAMESPACE% set image deploy/%BACK_DEPLOY% %BACK_CONTAINER%=%BACK_IMAGE_REPO%:%IMAGE_TAG%
-
-            REM --- wait for rollout ---
-            kubectl -n %K8S_NAMESPACE% rollout status deploy/%BACK_DEPLOY% --timeout=600s
-
-            if errorlevel 1 (
-              echo(
-              echo( === DEBUG: pods (wide) ===
-              kubectl -n %K8S_NAMESPACE% get pods -o wide
-
-              echo(
-              echo( === DEBUG: recent events (last 80) ===
-              kubectl -n %K8S_NAMESPACE% get events --sort-by=.metadata.creationTimestamp > events.txt
-              powershell -NoProfile -Command "Get-Content -Path 'events.txt' -Tail 80"
-
-              echo(
-              echo( === DEBUG: describe deployment ===
-              kubectl -n %K8S_NAMESPACE% describe deploy/%BACK_DEPLOY%
-
-              echo(
-              echo( === DEBUG: first not-ready pod: describe + logs ===
-              powershell -NoProfile -Command ^
-                "$ErrorActionPreference='Stop';" ^
-                "$ns=$env:K8S_NAMESPACE; $dep=$env:BACK_DEPLOY; $ctr=$env:BACK_CONTAINER;" ^
-                "$pods = (kubectl -n $ns get pods -l app=backend -o json | ConvertFrom-Json).items;" ^
-                "if(-not $pods){ Write-Host 'No pods found for app=backend'; exit 1 }" ^
-                "$notReady = $pods | Where-Object { $_.status.containerStatuses -and ($_.status.containerStatuses | Where-Object { -not $_.ready }) } | Select-Object -First 1;" ^
-                "if(-not $notReady){ $notReady = $pods | Select-Object -First 1 }" ^
-                "Write-Host '--- POD:' $notReady.metadata.name;" ^
-                "kubectl -n $ns describe pod $($notReady.metadata.name);" ^
-                "Write-Host ('--- LOGS (container {0}) ---' -f $ctr);" ^
-                "kubectl -n $ns logs $($notReady.metadata.name) -c $ctr --tail=200"
-
-              exit /b 1
-            )
           '''
         }
       }
