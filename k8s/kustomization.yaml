@@ -1,9 +1,10 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: doomed-apt
 resources:
   - deployment.yaml
   - service-nodeport.yaml
+  - mysql.yaml
 images:
   - name: mmmmnl/lobotomy
     newTag: v.1.0
-namespace: doomed-apt
-apiVersion: kustomize.config.k8s.io/v1beta1
-kind: Kustomization
