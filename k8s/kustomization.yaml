@@ -3,7 +3,7 @@ resources:
   - service-nodeport.yaml
 images:
   - name: mmmmnl/lobotomy
-    newTag: latest
+    newTag: v.1.0
 namespace: doomed-apt
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization

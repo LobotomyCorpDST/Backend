@@ -48,23 +48,29 @@ spec:
         image: mmmmnl/lobotomy:latest
         imagePullPolicy: Always
         livenessProbe:
-          tcpSocket: { port: 8080 }
-          initialDelaySeconds: 60
-          periodSeconds: 10
           failureThreshold: 3
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 15
+          periodSeconds: 20
+          successThreshold: 1
+          timeoutSeconds: 1
         name: backend
         ports:
         - containerPort: 8080
           protocol: TCP
         readinessProbe:
-          tcpSocket: { port: 8080 }
-          initialDelaySeconds: 30
+          failureThreshold: 3
+          httpGet:
+            path: /
+            port: 8080
+            scheme: HTTP
+          initialDelaySeconds: 5
           periodSeconds: 10
-          failureThreshold: 6
-        startupProbe:
-          tcpSocket: { port: 8080 }
-          failureThreshold: 30
-          periodSeconds: 10
+          successThreshold: 1
+          timeoutSeconds: 1
         resources:
           limits:
             cpu: 500m

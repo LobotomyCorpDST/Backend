@@ -121,6 +121,7 @@ pipeline {
             ) else (
               kubectl apply -n %K8S_NAMESPACE% -f k8s\\deployment.yaml
               kubectl apply -n %K8S_NAMESPACE% -f k8s\\service-nodeport.yaml
+              kubectl apply -n %K8S_NAMESPACE% -f k8s\\mysql.yaml
             )
           '''
         }
