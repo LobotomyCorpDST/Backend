@@ -38,7 +38,7 @@ public class SecurityConfig {
 
             .authorizeHttpRequests(auth -> auth
                 // ---------- Public endpoints ----------
-                .requestMatchers("/error", "/api/auth/**", "/h2-console/**").permitAll()
+                .requestMatchers("/", "/error", "/health", "/api/auth/**", "/h2-console/**", "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                 // ---------- Guest readable endpoints ----------
@@ -65,7 +65,11 @@ public class SecurityConfig {
         CorsConfiguration cfg = new CorsConfiguration();
         cfg.setAllowedOrigins(List.of(
             "http://localhost:3000",
-            "http://127.0.0.1:3000"
+            "http://127.0.0.1:3000",
+            "http://localhost:32080",
+            "http://127.0.0.1:32080",
+            "http://localhost:32033",
+            "http://127.0.0.1:32033"
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","Origin"));
