@@ -6,7 +6,9 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -21,6 +23,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.devsop.project.apartmentinvoice.dto.BulkPrintRequest;
 import com.devsop.project.apartmentinvoice.entity.Lease;
 import com.devsop.project.apartmentinvoice.entity.Lease.Status;
 import com.devsop.project.apartmentinvoice.entity.Room;
@@ -28,6 +31,9 @@ import com.devsop.project.apartmentinvoice.entity.Tenant;
 import com.devsop.project.apartmentinvoice.repository.LeaseRepository;
 import com.devsop.project.apartmentinvoice.repository.RoomRepository;
 import com.devsop.project.apartmentinvoice.service.LeaseService;
+import com.devsop.project.apartmentinvoice.service.PdfService;
+
+import jakarta.validation.Valid;
 
 import lombok.AllArgsConstructor;
 import lombok.Getter;
@@ -43,6 +49,7 @@ public class LeaseController {
   private final LeaseRepository leaseRepo;
   private final LeaseService leaseService;
   private final RoomRepository roomRepo;
+  private final PdfService pdfService;
 
   // ---------------------- DTOs ----------------------
 
@@ -286,5 +293,37 @@ public class LeaseController {
     @PatchMapping("/{id}")
   public LeaseView patch(@PathVariable Long id, @RequestBody Lease patch) {
     return toView(leaseService.updateLease(id, patch));
+  }
+
+  // ---------- Bulk PDF Generator ----------
+  @PostMapping(value = "/bulk-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+  public ResponseEntity<byte[]> getBulkLeasePdf(@Valid @RequestBody BulkPrintRequest request) {
+    List<byte[]> pdfList = new java.util.ArrayList<>();
+
+    for (Long id : request.getIds()) {
+      try {
+        Lease lease = leaseRepo.findByIdWithRefs(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Lease not found: " + id));
+
+        byte[] pdf = pdfService.generateLeasePdf(lease);
+        pdfList.add(pdf);
+      } catch (Exception e) {
+        // Log error but continue with other leases
+        System.err.println("Failed to generate PDF for lease " + id + ": " + e.getMessage());
+      }
+    }
+
+    if (pdfList.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No valid leases found to print");
+    }
+
+    byte[] mergedPdf = pdfService.mergePdfs(pdfList);
+    String filename = "leases-bulk-" + java.time.LocalDateTime.now().format(
+        java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".pdf";
+
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + filename)
+        .contentType(MediaType.APPLICATION_PDF)
+        .body(mergedPdf);
   }
 }
