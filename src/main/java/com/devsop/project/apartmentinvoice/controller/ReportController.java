@@ -22,6 +22,7 @@ import org.springframework.web.server.ResponseStatusException;
 import com.devsop.project.apartmentinvoice.dto.FloorSummaryDTO;
 import com.devsop.project.apartmentinvoice.dto.MonthlyTrendDTO;
 import com.devsop.project.apartmentinvoice.dto.ReportSummaryDTO;
+import com.devsop.project.apartmentinvoice.dto.RoomComparisonDTO;
 import com.devsop.project.apartmentinvoice.entity.Invoice;
 import com.devsop.project.apartmentinvoice.entity.Room;
 import com.devsop.project.apartmentinvoice.entity.Tenant;
@@ -449,6 +450,57 @@ public class ReportController {
 
       result.add(trend);
       current = current.plusMonths(1);
+    }
+
+    return result;
+  }
+
+  /**
+   * Get room-level comparison data for the entire floor of a selected room
+   * Returns usage data for all rooms on the same floor, with the selected room marked
+   */
+  @GetMapping("/floor-rooms-comparison/{roomNumber}")
+  public List<RoomComparisonDTO> getFloorRoomsComparison(@PathVariable Integer roomNumber) {
+    // Verify the room exists
+    roomRepo.findByNumber(roomNumber)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
+
+    // Determine the floor (e.g., room 203 -> floor 2)
+    int floor = roomNumber / 100;
+
+    // Get all rooms on this floor
+    List<Room> floorRooms = roomRepo.findAll().stream()
+        .filter(r -> r.getNumber() != null && r.getNumber() / 100 == floor)
+        .sorted((a, b) -> a.getNumber().compareTo(b.getNumber()))
+        .toList();
+
+    // For each room, get the most recent invoice data
+    List<RoomComparisonDTO> result = new ArrayList<>();
+
+    for (Room room : floorRooms) {
+      List<Invoice> roomInvoices = invoiceRepo.findByRoom_Id(room.getId());
+
+      // Get the most recent invoice
+      Invoice latestInvoice = roomInvoices.stream()
+          .filter(inv -> inv.getBillingYear() != null && inv.getBillingMonth() != null)
+          .max((a, b) -> {
+            int yearComp = a.getBillingYear().compareTo(b.getBillingYear());
+            if (yearComp != 0) return yearComp;
+            return a.getBillingMonth().compareTo(b.getBillingMonth());
+          })
+          .orElse(null);
+
+      // Build the comparison data
+      RoomComparisonDTO dto = RoomComparisonDTO.builder()
+          .roomNumber(room.getNumber())
+          .electricityUnits(latestInvoice != null ? latestInvoice.getElectricityUnits() : BigDecimal.ZERO)
+          .electricityBaht(latestInvoice != null ? latestInvoice.getElectricityBaht() : BigDecimal.ZERO)
+          .waterUnits(latestInvoice != null ? latestInvoice.getWaterUnits() : BigDecimal.ZERO)
+          .waterBaht(latestInvoice != null ? latestInvoice.getWaterBaht() : BigDecimal.ZERO)
+          .isSelected(room.getNumber().equals(roomNumber))
+          .build();
+
+      result.add(dto);
     }
 
     return result;
