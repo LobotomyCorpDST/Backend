@@ -20,6 +20,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.devsop.project.apartmentinvoice.dto.BulkPrintRequest;
 import com.devsop.project.apartmentinvoice.dto.CreateInvoiceRequest;
 import com.devsop.project.apartmentinvoice.entity.Invoice;
 import com.devsop.project.apartmentinvoice.entity.Lease;
@@ -191,6 +192,38 @@ public class InvoiceController {
         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=invoice-" + id + ".pdf")
         .contentType(MediaType.APPLICATION_PDF)
         .body(pdf);
+  }
+
+  // ---------- Bulk PDF Generator ----------
+  @PostMapping(value = "/bulk-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
+  public ResponseEntity<byte[]> getBulkInvoicePdf(@Valid @RequestBody BulkPrintRequest request) {
+    List<byte[]> pdfList = new java.util.ArrayList<>();
+
+    for (Long id : request.getIds()) {
+      try {
+        Invoice invoice = repo.findById(id)
+            .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found: " + id));
+
+        byte[] pdf = pdfService.renderTemplateToPdf("invoice", Map.of("invoice", invoice));
+        pdfList.add(pdf);
+      } catch (Exception e) {
+        // Log error but continue with other invoices
+        System.err.println("Failed to generate PDF for invoice " + id + ": " + e.getMessage());
+      }
+    }
+
+    if (pdfList.isEmpty()) {
+      throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "No valid invoices found to print");
+    }
+
+    byte[] mergedPdf = pdfService.mergePdfs(pdfList);
+    String filename = "invoices-bulk-" + java.time.LocalDateTime.now().format(
+        java.time.format.DateTimeFormatter.ofPattern("yyyyMMdd-HHmmss")) + ".pdf";
+
+    return ResponseEntity.ok()
+        .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=" + filename)
+        .contentType(MediaType.APPLICATION_PDF)
+        .body(mergedPdf);
   }
 
   // ✅ รองรับลิงก์เดิม /api/invoices/{id}/print (redirect ไป /api/.../pdf ให้ถูก path)

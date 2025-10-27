@@ -1,0 +1,144 @@
+pipeline {
+  agent any
+
+  stages {
+    stage('Checkout code') {
+      steps {
+        // For local testing, use local directory
+        // For GitHub, uncomment the line below:
+        // git branch: 'main', url: 'https://github.com/LobotomyCorpDST/Backend.git'
+        echo "Using local code from workspace"
+      }
+    }
+
+    stage('Compute Tag') {
+      steps {
+        script {
+          // Use git commit hash or build number as tag
+          env.IMAGE_TAG = sh(
+            script: 'git rev-parse --short HEAD 2>/dev/null || echo ${BUILD_NUMBER}',
+            returnStdout: true
+          ).trim()
+          echo "IMAGE_TAG=${env.IMAGE_TAG}"
+        }
+      }
+    }
+
+    stage('Build image') {
+      steps {
+        withCredentials([file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')]) {
+          script {
+            // Load environment variables
+            def envVars = readFile(ENV_FILE)
+            def backImageRepo = ''
+            envVars.split('\n').each { line ->
+              if (line.startsWith('BACK_IMAGE_REPO=')) {
+                backImageRepo = line.substring('BACK_IMAGE_REPO='.length()).trim()
+              }
+            }
+
+            if (!backImageRepo) {
+              error "BACK_IMAGE_REPO is empty"
+            }
+
+            env.IMAGE_NAME = "${backImageRepo}:${env.IMAGE_TAG}"
+            echo "Building image: ${env.IMAGE_NAME}"
+
+            // Build Docker image
+            sh "docker build -t ${env.IMAGE_NAME} ."
+          }
+        }
+      }
+    }
+
+    stage('List image') {
+      steps {
+        sh 'docker images | grep lobotomy || true'
+      }
+    }
+
+    stage('Login & Push image') {
+      steps {
+        withCredentials([
+          file(credentialsId: 'backend-env-file', variable: 'ENV_FILE'),
+          usernamePassword(credentialsId: 'docker-hub-creds', usernameVariable: 'DOCKERHUB_USERNAME', passwordVariable: 'DOCKERHUB_PASSWORD')
+        ]) {
+          script {
+            // Login to Docker Hub
+            sh 'echo $DOCKERHUB_PASSWORD | docker login -u $DOCKERHUB_USERNAME --password-stdin'
+
+            // Push image
+            sh "docker push ${env.IMAGE_NAME}"
+          }
+        }
+      }
+    }
+
+    stage('Deploy Backend to K8s') {
+      steps {
+        withCredentials([
+          file(credentialsId: 'kubeconfig-prod', variable: 'KUBECONFIG_FILE'),
+          file(credentialsId: 'backend-env-file', variable: 'ENV_FILE')
+        ]) {
+          script {
+            // Load environment variables
+            def envVars = readFile(ENV_FILE)
+            def namespace = ''
+            def deployment = ''
+            def container = ''
+            def imageRepo = ''
+
+            envVars.split('\n').each { line ->
+              if (line.startsWith('K8S_NAMESPACE=')) namespace = line.substring('K8S_NAMESPACE='.length()).trim()
+              if (line.startsWith('BACK_DEPLOY=')) deployment = line.substring('BACK_DEPLOY='.length()).trim()
+              if (line.startsWith('BACK_CONTAINER=')) container = line.substring('BACK_CONTAINER='.length()).trim()
+              if (line.startsWith('BACK_IMAGE_REPO=')) imageRepo = line.substring('BACK_IMAGE_REPO='.length()).trim()
+            }
+
+            if (!namespace || !deployment || !container || !imageRepo) {
+              error "Missing required environment variables"
+            }
+
+            // Set KUBECONFIG
+            env.KUBECONFIG = KUBECONFIG_FILE
+
+            echo "Deploying to K8s: namespace=${namespace}, deployment=${deployment}, image=${imageRepo}:${env.IMAGE_TAG}"
+
+            // Verify kubectl connection
+            sh 'kubectl version --client'
+            sh 'kubectl config current-context'
+
+            // Apply manifests
+            sh """
+              if [ -f k8s/kustomization.yaml ]; then
+                kubectl apply -n ${namespace} -k k8s/
+              else
+                kubectl apply -n ${namespace} -f k8s/deployment.yaml
+                kubectl apply -n ${namespace} -f k8s/service-nodeport.yaml
+                kubectl apply -n ${namespace} -f k8s/mysql.yaml
+              fi
+            """
+
+            // Update image
+            sh "kubectl set image deployment/${deployment} ${container}=${imageRepo}:${env.IMAGE_TAG} -n ${namespace}"
+
+            // Wait for rollout
+            sh "kubectl rollout status deployment/${deployment} -n ${namespace} --timeout=5m"
+          }
+        }
+      }
+    }
+  }
+
+  post {
+    always {
+      echo "Pipeline completed"
+    }
+    success {
+      echo "Deployment successful!"
+    }
+    failure {
+      echo "Deployment failed!"
+    }
+  }
+}

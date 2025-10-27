@@ -1,11 +1,14 @@
 package com.devsop.project.apartmentinvoice.service;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
 import org.jsoup.Jsoup;
 import org.jsoup.helper.W3CDom;
 import org.jsoup.nodes.Document;
@@ -98,5 +101,39 @@ public class PdfService {
             "tenant", lease.getTenant()
         );
         return renderTemplateToPdf("lease/print", model);
+    }
+
+    /**
+     * Merge multiple PDF byte arrays into a single PDF document
+     * @param pdfList List of PDF documents as byte arrays
+     * @return Combined PDF as byte array
+     */
+    public byte[] mergePdfs(List<byte[]> pdfList) {
+        if (pdfList == null || pdfList.isEmpty()) {
+            throw new IllegalArgumentException("PDF list cannot be null or empty");
+        }
+
+        if (pdfList.size() == 1) {
+            return pdfList.get(0);
+        }
+
+        try (ByteArrayOutputStream mergedOutput = new ByteArrayOutputStream()) {
+            PDFMergerUtility merger = new PDFMergerUtility();
+            merger.setDestinationStream(mergedOutput);
+
+            // Add each PDF to the merger
+            for (byte[] pdfBytes : pdfList) {
+                if (pdfBytes != null && pdfBytes.length > 0) {
+                    merger.addSource(new ByteArrayInputStream(pdfBytes));
+                }
+            }
+
+            merger.mergeDocuments(null);
+            return mergedOutput.toByteArray();
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            throw new RuntimeException("❌ Failed to merge PDFs: " + e.getMessage(), e);
+        }
     }
 }
