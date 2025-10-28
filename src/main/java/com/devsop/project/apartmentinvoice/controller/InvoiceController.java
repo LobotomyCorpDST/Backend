@@ -32,7 +32,15 @@ import com.devsop.project.apartmentinvoice.repository.InvoiceRepository;
 import com.devsop.project.apartmentinvoice.repository.LeaseRepository;
 import com.devsop.project.apartmentinvoice.repository.MaintenanceRepository;
 import com.devsop.project.apartmentinvoice.repository.RoomRepository;
+import com.devsop.project.apartmentinvoice.service.CsvImportService;
+import com.devsop.project.apartmentinvoice.service.InvoiceService;
+import com.devsop.project.apartmentinvoice.service.InvoiceSettingsService;
 import com.devsop.project.apartmentinvoice.service.PdfService;
+
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.web.multipart.MultipartFile;
+
+import java.nio.file.Paths;
 
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
@@ -47,6 +55,12 @@ public class InvoiceController {
   private final LeaseRepository leaseRepo;
   private final MaintenanceRepository maintenanceRepo;
   private final PdfService pdfService;
+  private final InvoiceService invoiceService;
+  private final CsvImportService csvImportService;
+  private final InvoiceSettingsService settingsService;
+
+  @Value("${file.upload.dir:./uploads}")
+  private String uploadBaseDir;
 
   // ---------- JSON APIs ----------
 
@@ -177,6 +191,12 @@ public class InvoiceController {
     total = total.add(sum(in.getMaintenanceBaht()));
     in.setTotalBaht(total);
 
+    // ===== Calculate Accumulated Debt =====
+    InvoiceService.DebtCalculation debt = invoiceService.calculateAccumulatedDebt(room.getId(), year, month);
+    in.setPreviousBalance(debt.getPreviousBalance());
+    in.setInterestCharge(debt.getInterestCharge());
+    in.setAccumulatedTotal(total.add(debt.getPreviousBalance()).add(debt.getInterestCharge()));
+
     return repo.save(in);
   }
 
@@ -186,7 +206,22 @@ public class InvoiceController {
     Invoice invoice = repo.findById(id)
         .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found"));
 
-    byte[] pdf = pdfService.renderTemplateToPdf("invoice", Map.of("invoice", invoice));
+    // Get invoice settings for payment info and QR code
+    com.devsop.project.apartmentinvoice.entity.InvoiceSettings settings = settingsService.getSettings();
+
+    // Build full path to QR code for PDF embedding
+    String qrCodeFullPath = null;
+    if (settings.getQrCodeImagePath() != null) {
+      qrCodeFullPath = java.nio.file.Paths.get(uploadBaseDir, settings.getQrCodeImagePath())
+        .toAbsolutePath().toString().replace("\\", "/");
+    }
+
+    Map<String, Object> model = new java.util.HashMap<>();
+    model.put("invoice", invoice);
+    model.put("settings", settings);
+    model.put("qrCodeFullPath", qrCodeFullPath);
+
+    byte[] pdf = pdfService.renderTemplateToPdf("invoice", model);
 
     return ResponseEntity.ok()
         .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=invoice-" + id + ".pdf")
@@ -194,17 +229,50 @@ public class InvoiceController {
         .body(pdf);
   }
 
+  // ---------- CSV Import ----------
+  @PostMapping("/import-csv")
+  public ResponseEntity<?> importCsv(@RequestParam("file") MultipartFile file) {
+    CsvImportService.ImportResult result = csvImportService.importInvoicesFromCsv(file);
+
+    return ResponseEntity.ok(Map.of(
+      "message", "CSV import completed",
+      "successCount", result.getSuccessCount(),
+      "failureCount", result.getFailureCount(),
+      "totalProcessed", result.getTotalProcessed(),
+      "errors", result.getErrors()
+    ));
+  }
+
+  // ---------- Get Current Month Invoices ----------
+  @GetMapping("/current-month")
+  public List<Invoice> getCurrentMonthInvoices() {
+    return invoiceService.getInvoicesForCurrentMonth();
+  }
+
   // ---------- Bulk PDF Generator ----------
   @PostMapping(value = "/bulk-pdf", produces = MediaType.APPLICATION_PDF_VALUE)
   public ResponseEntity<byte[]> getBulkInvoicePdf(@Valid @RequestBody BulkPrintRequest request) {
     List<byte[]> pdfList = new java.util.ArrayList<>();
+
+    // Get invoice settings once for all PDFs
+    com.devsop.project.apartmentinvoice.entity.InvoiceSettings settings = settingsService.getSettings();
+    String qrCodeFullPath = null;
+    if (settings.getQrCodeImagePath() != null) {
+      qrCodeFullPath = java.nio.file.Paths.get(uploadBaseDir, settings.getQrCodeImagePath())
+        .toAbsolutePath().toString().replace("\\", "/");
+    }
 
     for (Long id : request.getIds()) {
       try {
         Invoice invoice = repo.findById(id)
             .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Invoice not found: " + id));
 
-        byte[] pdf = pdfService.renderTemplateToPdf("invoice", Map.of("invoice", invoice));
+        Map<String, Object> model = new java.util.HashMap<>();
+        model.put("invoice", invoice);
+        model.put("settings", settings);
+        model.put("qrCodeFullPath", qrCodeFullPath);
+
+        byte[] pdf = pdfService.renderTemplateToPdf("invoice", model);
         pdfList.add(pdf);
       } catch (Exception e) {
         // Log error but continue with other invoices
