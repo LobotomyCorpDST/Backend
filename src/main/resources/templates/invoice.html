@@ -160,7 +160,24 @@
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="3" class="right">รวมทั้งสิ้น</td>
+        <td colspan="3" class="right"><b>รวมค่าใช้จ่ายเดือนนี้</b></td>
+        <td class="right" th:text="${#numbers.formatDecimal(invoice.totalBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+      </tr>
+      <!-- Accumulated Debt Section -->
+      <tr th:if="${invoice.previousBalance != null and invoice.previousBalance > 0}">
+        <td colspan="3" class="right" style="color: #c00;">ยอดค้างชำระจากเดือนก่อน</td>
+        <td class="right" style="color: #c00;" th:text="${#numbers.formatDecimal(invoice.previousBalance, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+      </tr>
+      <tr th:if="${invoice.interestCharge != null and invoice.interestCharge > 0}">
+        <td colspan="3" class="right" style="color: #c00;">ค่าปรับล่าช้า (ดอกเบี้ย)</td>
+        <td class="right" style="color: #c00;" th:text="${#numbers.formatDecimal(invoice.interestCharge, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+      </tr>
+      <tr th:if="${invoice.accumulatedTotal != null and invoice.accumulatedTotal > invoice.totalBaht}">
+        <td colspan="3" class="right" style="background: #ffe6e6; font-size: 17px;"><b>รวมทั้งสิ้น (รวมยอดค้าง)</b></td>
+        <td class="right" style="background: #ffe6e6; font-size: 17px;" th:text="${#numbers.formatDecimal(invoice.accumulatedTotal, 1, 'COMMA', 2, 'POINT')}">0.00</td>
+      </tr>
+      <tr th:if="${invoice.accumulatedTotal == null or invoice.accumulatedTotal <= invoice.totalBaht}">
+        <td colspan="3" class="right"><b>รวมทั้งสิ้น</b></td>
         <td class="right" th:text="${#numbers.formatDecimal(invoice.totalBaht, 1, 'COMMA', 2, 'POINT')}">0.00</td>
       </tr>
     </tfoot>
@@ -173,6 +190,29 @@
         • ชำระเมื่อ <span th:text="${#temporals.format(invoice.paidDate,'dd/MM/yyyy')}">05/09/2025</span>
       </span>
     </p>
+  </div>
+
+  <!-- Payment Information Section (Only shown if not paid) -->
+  <div th:if="${settings != null and invoice.status != 'PAID'}" style="margin-top: 20px; padding: 12px; border: 2px dashed #999; background: #f9f9f9;">
+    <h3 style="margin-top: 0; font-size: 18px; text-align: center;">วิธีการชำระเงิน / Payment Method</h3>
+
+    <!-- Payment Description -->
+    <div th:if="${settings.paymentDescription != null}" style="white-space: pre-line; font-size: 15px; margin-bottom: 12px;">
+      <p th:text="${settings.paymentDescription}">
+        ธนาคารกสิกรไทย<br/>
+        บัญชีออมทรัพย์<br/>
+        เลขที่ 123-4-56789-0<br/>
+        ชื่อบัญชี: อพาร์ทเมนต์ABC
+      </p>
+    </div>
+
+    <!-- QR Code -->
+    <div th:if="${settings.qrCodeImagePath != null}" style="text-align: center;">
+      <img th:src="'file:///' + ${qrCodeFullPath}"
+           alt="QR Code for Payment"
+           style="max-width: 250px; max-height: 250px; border: 1px solid #ccc; padding: 8px; background: white;" />
+      <p style="font-size: 13px; color: #666; margin-top: 6px;">สแกน QR Code เพื่อชำระเงิน</p>
+    </div>
   </div>
 
   <div class="signatures">

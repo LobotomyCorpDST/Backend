@@ -84,6 +84,27 @@ public class Invoice {
   @Column(precision = 12, scale = 2)
   private BigDecimal totalBaht;
 
+  /**
+   * Outstanding balance from previous unpaid invoices.
+   * Sum of all unpaid invoice totals from earlier billing periods.
+   */
+  @Column(precision = 12, scale = 2)
+  private BigDecimal previousBalance;
+
+  /**
+   * Late payment interest charge.
+   * Calculated based on previousBalance and interest rate from InvoiceSettings.
+   */
+  @Column(precision = 12, scale = 2)
+  private BigDecimal interestCharge;
+
+  /**
+   * Total amount due including accumulated debt.
+   * Formula: previousBalance + interestCharge + totalBaht
+   */
+  @Column(precision = 12, scale = 2)
+  private BigDecimal accumulatedTotal;
+
   @Enumerated(EnumType.STRING)
   @Column(nullable = false)
   private Status status = Status.PENDING;

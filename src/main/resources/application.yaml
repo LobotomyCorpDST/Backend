@@ -3,6 +3,11 @@ spring:
     name: apartment-invoice
   profiles:
     default: dev
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 10MB
+      max-request-size: 10MB
 
 # ===== dev (H2 in-memory) =====
 ---
@@ -117,6 +122,11 @@ app:
   jwt:
     secret: "this-is-a-demo-secret-key-please-change-it-32bytes"
     expiration: 28800000
+
+# ===== file upload configuration =====
+file:
+  upload:
+    dir: ./uploads
 
 logging:
   level:
