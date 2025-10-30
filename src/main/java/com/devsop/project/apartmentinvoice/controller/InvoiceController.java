@@ -97,6 +97,14 @@ public class InvoiceController {
     return repo.findByRoom_Id(roomId);
   }
 
+  /** ใบแจ้งหนี้ล่าสุดของห้อง (สำหรับแสดงค่าใช้จ่ายล่าสุดใน Room Detail) */
+  @GetMapping("/by-room/{roomId}/latest")
+  public ResponseEntity<Invoice> getLatestInvoiceByRoom(@PathVariable Long roomId) {
+    return repo.findFirstByRoom_IdOrderByBillingYearDescBillingMonthDesc(roomId)
+        .map(ResponseEntity::ok)
+        .orElse(ResponseEntity.notFound().build());
+  }
+
   // ---------- สร้างใบแจ้งหนี้ ----------
 
   @PostMapping

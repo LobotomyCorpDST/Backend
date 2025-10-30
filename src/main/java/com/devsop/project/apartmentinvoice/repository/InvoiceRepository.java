@@ -15,6 +15,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
   List<Invoice> findByTenant_Id(Long tenantId);
   List<Invoice> findByBillingYearAndBillingMonth(Integer year, Integer month);
   Optional<Invoice> findFirstByRoom_IdAndBillingYearAndBillingMonth(Long roomId, Integer year, Integer month);
+  Optional<Invoice> findFirstByRoom_IdOrderByBillingYearDescBillingMonthDesc(Long roomId);
 
   /**
    * Find all unpaid invoices for a specific room before a given billing period.
