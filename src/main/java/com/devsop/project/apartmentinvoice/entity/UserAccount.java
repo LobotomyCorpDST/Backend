@@ -25,5 +25,12 @@ public class UserAccount {
   private String password;
 
   @Column(nullable = false)
-  private String role; // ADMIN, STAFF
+  private String role; // ADMIN, STAFF, USER, GUEST
+
+  /**
+   * Room ID for USER role (nullable - only used for USER role)
+   * Links a USER account to their specific room for access control
+   */
+  @Column(name = "room_id")
+  private Long roomId;
 }

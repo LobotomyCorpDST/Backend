@@ -84,6 +84,7 @@ public interface LeaseRepository extends JpaRepository<Lease, Long> {
   List<Lease> findByTenant_Id(Long tenantId);
   List<Lease> findByStatus(Status status);
   List<Lease> findByRoom_IdAndStatus(Long roomId, Status status);
+  List<Lease> findByTenant_IdAndStatus(Long tenantId, Status status);
 
   List<Lease> findByRoom_IdAndStartDateLessThanEqualAndEndDateGreaterThanEqual(
       Long roomId, LocalDate date1, LocalDate date2);

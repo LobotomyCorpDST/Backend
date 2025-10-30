@@ -1,6 +1,7 @@
 package com.devsop.project.apartmentinvoice.controller;
 
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -14,7 +15,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.devsop.project.apartmentinvoice.dto.TenantWithRoomsDTO;
+import com.devsop.project.apartmentinvoice.entity.Lease;
 import com.devsop.project.apartmentinvoice.entity.Tenant;
+import com.devsop.project.apartmentinvoice.repository.LeaseRepository;
 import com.devsop.project.apartmentinvoice.repository.TenantRepository;
 
 import jakarta.validation.Valid;
@@ -26,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 public class TenantController {
 
   private final TenantRepository repo;
+  private final LeaseRepository leaseRepo;
 
   // ---------------------- Query ----------------------
 
@@ -35,6 +40,32 @@ public class TenantController {
   @GetMapping
   public List<Tenant> all() {
     return repo.findAll();
+  }
+
+  /**
+   * ดึงผู้เช่าทั้งหมดพร้อมข้อมูลห้องที่มี active lease
+   */
+  @GetMapping("/with-rooms")
+  public List<TenantWithRoomsDTO> allWithRooms() {
+    List<Tenant> tenants = repo.findAll();
+    return tenants.stream().map(tenant -> {
+      List<Lease> activeLeases = leaseRepo.findByTenant_IdAndStatus(
+          tenant.getId(),
+          Lease.Status.ACTIVE
+      );
+      List<Integer> roomNumbers = activeLeases.stream()
+          .map(lease -> lease.getRoom().getNumber())
+          .sorted()
+          .collect(Collectors.toList());
+
+      return new TenantWithRoomsDTO(
+          tenant.getId(),
+          tenant.getName(),
+          tenant.getPhone(),
+          tenant.getLineId(),
+          roomNumbers
+      );
+    }).collect(Collectors.toList());
   }
 
   /**
