@@ -45,7 +45,7 @@ public class SecurityConfig {
                 .requestMatchers("/api/users/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
 
                 // ---------- STAFF/USER-specific endpoints (Dashboard + Maintenance only) ----------
-                .requestMatchers(HttpMethod.GET, "/api/dashboard/**", "/api/maintenance/**", "/api/rooms").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF", "ROLE_USER", "USER")
+                .requestMatchers(HttpMethod.GET, "/api/dashboard/**", "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF", "ROLE_USER", "USER")
                 .requestMatchers(HttpMethod.POST, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF", "ROLE_USER", "USER")
                 .requestMatchers(HttpMethod.PUT, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
                 .requestMatchers(HttpMethod.PATCH, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
