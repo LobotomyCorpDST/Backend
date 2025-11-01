@@ -28,6 +28,12 @@ jobs:
       run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
     - name: push docker
       run: docker push mmmmnl/lobotomycorp:latest
+    - name: 🔍 DEBUG Print Repo Name
+      run: |
+        echo "GITHUB REPOSITORY NAME (Case-Sensitive): ${{ github.repository }}"
+        echo "GITHUB ACTOR (User/Org): ${{ github.repository_owner }}"
+        # สั่งให้ Workflow ล้มเหลวที่นี่ชั่วคราว เพื่อตรวจสอบ Log ก่อน
+        exit 1
     - name: 🔐 Authenticate to GCP (WIF)
       uses: google-github-actions/auth@v2
       with:
@@ -36,12 +42,6 @@ jobs:
         service_account: ${{ secrets.SA_EMAIL }}
         # Project ID ก็สามารถดึงจาก Secret ได้เช่นกัน
         project_id: ${{ secrets.GCP_PROJECT_ID }} 
-    - name: 🔍 DEBUG Print Repo Name
-      run: |
-        echo "GITHUB REPOSITORY NAME (Case-Sensitive): ${{ github.repository }}"
-        echo "GITHUB ACTOR (User/Org): ${{ github.repository_owner }}"
-        # สั่งให้ Workflow ล้มเหลวที่นี่ชั่วคราว เพื่อตรวจสอบ Log ก่อน
-        exit 1
     - name: ⚙️ Get GKE Credentials
       uses: google-github-actions/get-gke-credentials@v2
       with:
