@@ -6,11 +6,10 @@ metadata:
   labels:
     app: backend
 spec:
-  type: NodePort
+  type: LoadBalancer
   selector:
     app: backend
   ports:
     - name: http
       port: 8080
       targetPort: 8080
-      nodePort: 32081
