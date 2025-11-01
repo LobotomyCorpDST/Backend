@@ -36,10 +36,10 @@ jobs:
       uses: google-github-actions/auth@v2
       with:
         # ดึงค่าจาก GitHub Secrets
-        workload_identity_provider: projects/81558488107/locations/global/workloadIdentityPools/github-actions-pool/providers/gh-actions-provider
-        service_account: 81558488107-compute@developer.gserviceaccount.com
+        workload_identity_provider: ${{ secrets.WIF_PROVIDER_ID }}
+        service_account: ${{ secrets.SA_EMAIL }}
         # Project ID ก็สามารถดึงจาก Secret ได้เช่นกัน
-        project_id: doomapt-project
+        project_id: ${{ secrets.GCP_PROJECT_ID }} 
     - name: ⚙️ Get GKE Credentials
       uses: google-github-actions/get-gke-credentials@v2
       with:
