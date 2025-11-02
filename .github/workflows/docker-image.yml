@@ -35,11 +35,8 @@ jobs:
     - name: 🔐 Authenticate to GCP (WIF)
       uses: google-github-actions/auth@v2
       with:
-        # ดึงค่าจาก GitHub Secrets
-        workload_identity_provider: ${{ secrets.WIF_PROVIDER_ID }}
-        service_account: ${{ secrets.SA_EMAIL }}
-        # Project ID ก็สามารถดึงจาก Secret ได้เช่นกัน
-        project_id: ${{ secrets.GCP_PROJECT_ID }} 
+        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        project_id: ${{ secrets.GCP_PROJECT_ID }}
     - name: ⚙️ Get GKE Credentials
       uses: google-github-actions/get-gke-credentials@v2
       with:
