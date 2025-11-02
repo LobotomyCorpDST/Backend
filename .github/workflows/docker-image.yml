@@ -43,3 +43,18 @@ jobs:
         cluster_name: ${{ env.GKE_CLUSTER }}
         location: ${{ env.GKE_ZONE }}
         project_id: ${{ secrets.GCP_PROJECT_ID }}
+    - name: Install Kustomize
+      run: curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+        
+    - name: 📝 Update K8s Image Tag
+      run: |
+          K8S_PATH="./k8s" 
+          ./kustomize edit set image mmmmnl/lobotomycorp:${{ github.sha }} --kustomize-dir $K8S_PATH
+          
+    - name: 🚀 Deploy Backend to GKE
+      run: |
+          K8S_PATH="./k8s"
+          kubectl apply -k $K8S_PATH --namespace=doomed-apt
+          
+    - name: ⏳ Wait for Deployment Rollout
+      run: kubectl rollout status deployment/backend-deployment --namespace=doomed-apt --timeout=5m
