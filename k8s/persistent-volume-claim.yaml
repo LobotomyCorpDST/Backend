@@ -5,7 +5,7 @@ metadata:
   namespace: doomed-apt
 spec:
   accessModes:
-    - ReadWriteMany
+    - ReadWriteOnce
   volumeMode: Filesystem
   resources:
     requests:
