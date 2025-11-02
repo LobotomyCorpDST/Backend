@@ -8,7 +8,7 @@ on:
 
 env:
   GKE_CLUSTER: doomapt-project-cluster
-  GKE_ZONE: asia-southeast1
+  GKE_ZONE: asia-southeast1-a
 
 jobs:
 
