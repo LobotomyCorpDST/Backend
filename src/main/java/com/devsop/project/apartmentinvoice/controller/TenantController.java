@@ -12,6 +12,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -43,11 +44,25 @@ public class TenantController {
   }
 
   /**
-   * ดึงผู้เช่าทั้งหมดพร้อมข้อมูลห้องที่มี active lease
+   * ดึงผู้เช่าทั้งหมดพร้อมข้อมูลห้องที่มี active lease - รองรับการค้นหา
    */
   @GetMapping("/with-rooms")
-  public List<TenantWithRoomsDTO> allWithRooms() {
+  public List<TenantWithRoomsDTO> allWithRooms(@RequestParam(required = false) String search) {
     List<Tenant> tenants = repo.findAll();
+
+    // Filter by search term if provided
+    if (search != null && !search.trim().isEmpty()) {
+      String searchLower = search.toLowerCase();
+      tenants = tenants.stream()
+          .filter(tenant ->
+              tenant.getId().toString().contains(search) ||
+              tenant.getName().toLowerCase().contains(searchLower) ||
+              (tenant.getPhone() != null && tenant.getPhone().contains(search)) ||
+              (tenant.getLineId() != null && tenant.getLineId().toLowerCase().contains(searchLower))
+          )
+          .collect(Collectors.toList());
+    }
+
     return tenants.stream().map(tenant -> {
       List<Lease> activeLeases = leaseRepo.findByTenant_IdAndStatus(
           tenant.getId(),

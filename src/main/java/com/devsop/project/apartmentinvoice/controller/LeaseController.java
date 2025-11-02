@@ -117,11 +117,29 @@ public class LeaseController {
 
   @GetMapping
   @Transactional(readOnly = true)
-  public List<LeaseView> all(@RequestParam(required = false) Status status) {
+  public List<LeaseView> all(
+      @RequestParam(required = false) Status status,
+      @RequestParam(required = false) String search) {
     List<Lease> leases = leaseRepo.findAllWithRefs();
+
+    // Filter by status if provided
     if (status != null) {
       leases = leases.stream().filter(l -> l.getStatus() == status).toList();
     }
+
+    // Filter by search term if provided
+    if (search != null && !search.trim().isEmpty()) {
+      String searchLower = search.toLowerCase();
+      leases = leases.stream()
+          .filter(l ->
+              l.getId().toString().contains(search) ||
+              (l.getRoom() != null && l.getRoom().getNumber().toString().contains(search)) ||
+              (l.getTenant() != null && l.getTenant().getName() != null &&
+                  l.getTenant().getName().toLowerCase().contains(searchLower))
+          )
+          .toList();
+    }
+
     return leases.stream().map(LeaseController::toView).toList();
   }
 
