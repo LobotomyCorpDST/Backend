@@ -5,6 +5,8 @@ resources:
   - deployment.yaml
   - service-nodeport.yaml
   - mysql.yaml
+  - persistent-volume.yaml
+  - persistent-volume-claim.yaml
 images:
   - name: mmmmnl/lobotomy
     newTag: v.1.0
