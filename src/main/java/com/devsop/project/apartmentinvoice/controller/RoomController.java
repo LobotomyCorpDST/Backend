@@ -5,13 +5,14 @@ import java.util.stream.Collectors;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.web.bind.annotation.DeleteMapping;       // ✅ added
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;         // << added
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -55,11 +56,34 @@ public class RoomController {
 
   // =================== CRUD ===================
 
-  /** ดึงห้องทั้งหมด + สรุปสถานะผู้เช่าปัจจุบัน (RoomView) */
+  /** ดึงห้องทั้งหมด + สรุปสถานะผู้เช่าปัจจุบัน (RoomView) - รองรับการค้นหา */
   @GetMapping
   @Transactional(readOnly = true)
-  public List<RoomView> all() {
-    List<Room> rooms = roomRepo.findAll();
+  public List<RoomView> all(@RequestParam(required = false) String search) {
+    List<Room> rooms;
+
+    if (search != null && !search.trim().isEmpty()) {
+      // Search by room number or tenant name
+      rooms = roomRepo.findAll().stream()
+          .filter(r -> {
+            // Match room number
+            if (r.getNumber().toString().contains(search)) {
+              return true;
+            }
+            // Match tenant name
+            Lease active = leaseRepo.findByRoom_IdAndStatus(r.getId(), Status.ACTIVE)
+                .stream().findFirst().orElse(null);
+            if (active != null && active.getTenant() != null) {
+              String tenantName = active.getTenant().getName();
+              return tenantName != null && tenantName.toLowerCase().contains(search.toLowerCase());
+            }
+            return false;
+          })
+          .collect(Collectors.toList());
+    } else {
+      rooms = roomRepo.findAll();
+    }
+
     return rooms.stream()
         .map(r -> {
           Lease active = leaseRepo.findByRoom_IdAndStatus(r.getId(), Status.ACTIVE)

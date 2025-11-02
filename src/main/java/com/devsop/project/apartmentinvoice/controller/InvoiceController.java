@@ -65,8 +65,23 @@ public class InvoiceController {
   // ---------- JSON APIs ----------
 
   @GetMapping
-  public List<Invoice> all() {
-    return repo.findAll();
+  public List<Invoice> all(@RequestParam(required = false) String search) {
+    List<Invoice> invoices = repo.findAll();
+
+    // Filter by search term if provided
+    if (search != null && !search.trim().isEmpty()) {
+      String searchLower = search.toLowerCase();
+      invoices = invoices.stream()
+          .filter(invoice ->
+              invoice.getId().toString().contains(search) ||
+              (invoice.getRoom() != null && invoice.getRoom().getNumber().toString().contains(search)) ||
+              invoice.getTotalBaht().toString().contains(search) ||
+              (invoice.getStatus() != null && invoice.getStatus().toString().toLowerCase().contains(searchLower))
+          )
+          .toList();
+    }
+
+    return invoices;
   }
 
   /** ดึงใบแจ้งหนี้รายใบ (สำหรับหน้า detail) */

@@ -61,8 +61,23 @@ public class MaintenanceController {
 
   // ---------- Read ----------
   @GetMapping
-  public List<MaintenanceResponse> all() {
-    return maintenanceRepo.findAll().stream().map(this::toDto).toList();
+  public List<MaintenanceResponse> all(@RequestParam(required = false) String search) {
+    List<Maintenance> maintenances = maintenanceRepo.findAll();
+
+    // Filter by search term if provided
+    if (search != null && !search.trim().isEmpty()) {
+      String searchLower = search.toLowerCase();
+      maintenances = maintenances.stream()
+          .filter(m ->
+              m.getId().toString().contains(search) ||
+              (m.getRoom() != null && m.getRoom().getNumber().toString().contains(search)) ||
+              (m.getDescription() != null && m.getDescription().toLowerCase().contains(searchLower)) ||
+              (m.getStatus() != null && m.getStatus().toString().toLowerCase().contains(searchLower))
+          )
+          .toList();
+    }
+
+    return maintenances.stream().map(this::toDto).toList();
   }
 
   @GetMapping("/{id}")
