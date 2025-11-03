@@ -28,33 +28,30 @@ jobs:
       run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
     - name: push docker
       run: docker push mmmmnl/lobotomycorp:latest
-    - name: 🔍 DEBUG Print Repo Name
-      run: |
-        echo "GITHUB REPOSITORY NAME (Case-Sensitive): ${{ github.repository }}"
-        echo "GITHUB ACTOR (User/Org): ${{ github.repository_owner }}"
-    - name: 🔐 Authenticate to GCP (WIF)
-      uses: google-github-actions/auth@v2
-      with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
-    - name: ⚙️ Get GKE Credentials
-      uses: google-github-actions/get-gke-credentials@v2
-      with:
-        cluster_name: ${{ env.GKE_CLUSTER }}
-        location: ${{ env.GKE_ZONE }}
-        project_id: ${{ secrets.GCP_PROJECT_ID }}
+
+    # - name: 🔐 Authenticate to GCP (WIF)
+    #   uses: google-github-actions/auth@v2
+    #   with:
+    #     credentials_json: ${{ secrets.GCP_SA_KEY }}
+    #     project_id: ${{ secrets.GCP_PROJECT_ID }}
+    # - name: ⚙️ Get GKE Credentials
+    #   uses: google-github-actions/get-gke-credentials@v2
+    #   with:
+    #     cluster_name: ${{ env.GKE_CLUSTER }}
+    #     location: ${{ env.GKE_ZONE }}
+    #     project_id: ${{ secrets.GCP_PROJECT_ID }}
       
-    - name: Install Kustomize
-      run: curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
+    # - name: Install Kustomize
+    #   run: curl -s "https://raw.githubusercontent.com/kubernetes-sigs/kustomize/master/hack/install_kustomize.sh" | bash
         
-    - name: 📝 Update K8s Image Tag
-      run: |
-        cd k8s
-        ../kustomize edit set image mmmmnl/lobotomycorp:${{ github.sha }}
+    # - name: 📝 Update K8s Image Tag
+    #   run: |
+    #     cd k8s
+    #     ../kustomize edit set image mmmmnl/lobotomycorp:${{ github.sha }}
           
-    - name: 🚀 Deploy Backend to GKE
-      run: |
-        kubectl apply -k k8s --namespace=doomed-apt
+    # - name: 🚀 Deploy Backend to GKE
+    #   run: |
+    #     kubectl apply -k k8s --namespace=doomed-apt
           
-    - name: ⏳ Wait for Deployment Rollout
-      run: kubectl rollout status deployment/backend-deployment --namespace=doomed-apt --timeout=5m
+    # - name: ⏳ Wait for Deployment Rollout
+    #   run: kubectl rollout status deployment/backend-deployment --namespace=doomed-apt --timeout=5m
