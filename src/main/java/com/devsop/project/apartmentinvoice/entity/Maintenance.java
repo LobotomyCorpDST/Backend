@@ -37,6 +37,12 @@ public class Maintenance {
   @Column(precision = 12, scale = 2)
   private BigDecimal costBaht;              // ค่าใช้จ่าย
 
+  @Column(length = 200)
+  private String responsiblePerson;         // ชื่อผู้รับผิดชอบ
+
+  @Column(length = 50)
+  private String responsiblePhone;          // เบอร์โทรศัพท์ผู้รับผิดชอบ
+
   public enum Status {
     PLANNED,
     IN_PROGRESS,
