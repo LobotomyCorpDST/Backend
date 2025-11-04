@@ -161,12 +161,16 @@ public class DocumentService {
     Document document = getDocumentById(documentId);
     String gcsObjectName = document.getFilePath();
     try {
+      // Build Content-Disposition for filename in browser download
+      String contentDisposition = "attachment; filename=\"" + document.getFileName() + "\"";
+
       BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, gcsObjectName)).build();
       URL signedUrl = storage.signUrl(
           blobInfo,
           10,
           TimeUnit.MINUTES,
-          Storage.SignUrlOption.withV4Signature());
+          Storage.SignUrlOption.withV4Signature(),
+          Storage.SignUrlOption.withResponseContentDisposition(contentDisposition));
       return signedUrl.toString();
     } catch (Exception e) {
       throw new ResponseStatusException(
@@ -199,4 +203,3 @@ public class DocumentService {
     documentRepository.deleteById(documentId);
   }
 }
-
