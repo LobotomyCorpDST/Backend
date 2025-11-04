@@ -22,4 +22,6 @@ public class UpdateMaintenanceRequest {
   private LocalDate completedDate;
   private BigDecimal costBaht;
   private String status;          // PLANNED / IN_PROGRESS / COMPLETED / CANCELED
+  private String responsiblePerson;
+  private String responsiblePhone;
 }

@@ -54,6 +54,8 @@ public class MaintenanceController {
     m.setStatus(Status.PLANNED);
     m.setScheduledDate(req.getScheduledDate());
     m.setCostBaht(req.getCostBaht());
+    m.setResponsiblePerson(req.getResponsiblePerson());
+    m.setResponsiblePhone(req.getResponsiblePhone());
 
     m = maintenanceRepo.save(m);
     return toDto(m);
@@ -175,6 +177,8 @@ public MaintenanceResponse update(
   if (req.getScheduledDate() != null) m.setScheduledDate(req.getScheduledDate());
   if (req.getCompletedDate() != null) m.setCompletedDate(req.getCompletedDate());
   if (req.getCostBaht() != null) m.setCostBaht(req.getCostBaht());
+  if (req.getResponsiblePerson() != null) m.setResponsiblePerson(req.getResponsiblePerson());
+  if (req.getResponsiblePhone() != null) m.setResponsiblePhone(req.getResponsiblePhone());
   // ปรับสถานะ (และจัดการ completedDate)
   if (req.getStatus() != null) {
   try {
@@ -212,6 +216,8 @@ public MaintenanceResponse update(
         .scheduledDate(m.getScheduledDate())
         .completedDate(m.getCompletedDate())
         .costBaht(m.getCostBaht())
+        .responsiblePerson(m.getResponsiblePerson())
+        .responsiblePhone(m.getResponsiblePhone())
         .build();
   }
 }
