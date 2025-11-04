@@ -9,6 +9,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Collections;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
@@ -170,7 +171,8 @@ public class DocumentService {
           10,
           TimeUnit.MINUTES,
           Storage.SignUrlOption.withV4Signature(),
-          Storage.SignUrlOption.withResponseContentDisposition(contentDisposition));
+          Storage.SignUrlOption.withQueryParams(
+              Collections.singletonMap("response-content-disposition", contentDisposition)));
       return signedUrl.toString();
     } catch (Exception e) {
       throw new ResponseStatusException(
