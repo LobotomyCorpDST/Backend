@@ -131,3 +131,7 @@ file:
 logging:
   level:
     org.springframework.security: DEBUG
+
+gcs:
+  bucket:
+    name: apartment-document
