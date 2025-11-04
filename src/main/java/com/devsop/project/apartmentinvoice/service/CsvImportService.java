@@ -137,14 +137,9 @@ public class CsvImportService {
         return;
       }
 
-      // Find active lease
+      // Find active lease (optional - allow import without active lease)
       LocalDate issueDate = LocalDate.of(billingYear, billingMonth, 1);
       Lease lease = leaseRepository.findActiveLeaseByRoomOnDate(room.getId(), issueDate).orElse(null);
-
-      if (lease == null || lease.getTenant() == null) {
-        result.addError(lineNumber, "No active lease found for room " + roomNumber + " on " + issueDate);
-        return;
-      }
 
       // Calculate accumulated debt
       DebtCalculation debt = invoiceService.calculateAccumulatedDebt(room.getId(), billingYear, billingMonth);
@@ -152,7 +147,7 @@ public class CsvImportService {
       // Create invoice
       Invoice invoice = new Invoice();
       invoice.setRoom(room);
-      invoice.setTenant(lease.getTenant());
+      invoice.setTenant(lease != null ? lease.getTenant() : null); // Tenant optional if no lease
       invoice.setBillingYear(billingYear);
       invoice.setBillingMonth(billingMonth);
       invoice.setIssueDate(issueDate);
@@ -169,7 +164,8 @@ public class CsvImportService {
       invoice.setWaterBaht(waterUnits.multiply(waterRate));
 
       // Rent and fees from lease/room
-      invoice.setRentBaht(lease.getMonthlyRent() != null ? lease.getMonthlyRent() : BigDecimal.ZERO);
+      // If no active lease, rent = 0
+      invoice.setRentBaht(lease != null && lease.getMonthlyRent() != null ? lease.getMonthlyRent() : BigDecimal.ZERO);
       invoice.setCommonFeeBaht(room.getCommonFeeBaht() != null ? room.getCommonFeeBaht() : BigDecimal.ZERO);
       invoice.setGarbageFeeBaht(room.getGarbageFeeBaht() != null ? room.getGarbageFeeBaht() : BigDecimal.ZERO);
       invoice.setOtherBaht(BigDecimal.ZERO);
