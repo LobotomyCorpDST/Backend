@@ -38,7 +38,12 @@ public class UserAccountController {
     public ResponseEntity<List<UserAccountResponse>> getAllUsers() {
         List<UserAccount> users = userAccountService.getAllUsers();
         List<UserAccountResponse> response = users.stream()
-                .map(u -> new UserAccountResponse(u.getId(), u.getUsername(), u.getRole(), u.getRoomId()))
+                .map(u -> new UserAccountResponse(
+                    u.getId(),
+                    u.getUsername(),
+                    u.getRole(),
+                    u.getRoomId(),
+                    u.getRoom() != null ? u.getRoom().getNumber() : null))
                 .toList();
         return ResponseEntity.ok(response);
     }
@@ -50,7 +55,12 @@ public class UserAccountController {
     public ResponseEntity<UserAccountResponse> getUserById(@PathVariable Long id) {
         return userAccountService.getUserById(id)
                 .map(u -> ResponseEntity.ok(
-                        new UserAccountResponse(u.getId(), u.getUsername(), u.getRole(), u.getRoomId())))
+                        new UserAccountResponse(
+                            u.getId(),
+                            u.getUsername(),
+                            u.getRole(),
+                            u.getRoomId(),
+                            u.getRoom() != null ? u.getRoom().getNumber() : null)))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -70,7 +80,8 @@ public class UserAccountController {
                     created.getId(),
                     created.getUsername(),
                     created.getRole(),
-                    created.getRoomId());
+                    created.getRoomId(),
+                    created.getRoom() != null ? created.getRoom().getNumber() : null);
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
@@ -95,7 +106,8 @@ public class UserAccountController {
                     updated.getId(),
                     updated.getUsername(),
                     updated.getRole(),
-                    updated.getRoomId());
+                    updated.getRoomId(),
+                    updated.getRoom() != null ? updated.getRoom().getNumber() : null);
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -158,5 +170,6 @@ public class UserAccountController {
         private final String username;
         private final String role;
         private final Long roomId;
+        private final Integer roomNumber; // Room number (e.g., 201, 305) - null for non-USER roles
     }
 }
