@@ -74,7 +74,7 @@ public class UserAccountController {
                     request.getUsername(),
                     request.getPassword(),
                     request.getRole(),
-                    request.getRoomId());
+                    request.getRoomNumber());
 
             UserAccountResponse response = new UserAccountResponse(
                     created.getId(),
@@ -90,7 +90,7 @@ public class UserAccountController {
     }
 
     /**
-     * Update user (username, role, roomId) - ADMIN only
+     * Update user (username, role, roomNumber) - ADMIN only
      */
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id,
@@ -100,7 +100,7 @@ public class UserAccountController {
                     id,
                     request.getUsername(),
                     request.getRole(),
-                    request.getRoomId());
+                    request.getRoomNumber());
 
             UserAccountResponse response = new UserAccountResponse(
                     updated.getId(),
@@ -149,14 +149,14 @@ public class UserAccountController {
         private String username;
         private String password;
         private String role; // ADMIN, STAFF, USER
-        private Long roomId; // Only for USER role
+        private Integer roomNumber; // Room number (e.g., 201, 305) - only for USER role
     }
 
     @Data
     public static class UpdateUserRequest {
         private String username;
         private String role;
-        private Long roomId;
+        private Integer roomNumber; // Room number (e.g., 201, 305)
     }
 
     @Data
