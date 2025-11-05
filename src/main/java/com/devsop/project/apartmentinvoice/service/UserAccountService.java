@@ -20,17 +20,17 @@ public class UserAccountService {
     private final PasswordEncoder passwordEncoder;
 
     /**
-     * Get all user accounts
+     * Get all user accounts with room relationship eagerly loaded
      */
     public List<UserAccount> getAllUsers() {
-        return userAccountRepository.findAll();
+        return userAccountRepository.findAllWithRoom();
     }
 
     /**
-     * Get user by ID
+     * Get user by ID with room relationship eagerly loaded
      */
     public Optional<UserAccount> getUserById(Long id) {
-        return userAccountRepository.findById(id);
+        return userAccountRepository.findByIdWithRoom(id);
     }
 
     /**
@@ -67,7 +67,9 @@ public class UserAccountService {
         user.setRole(role.toUpperCase());
         user.setRoomId(roomId);
 
-        return userAccountRepository.save(user);
+        UserAccount saved = userAccountRepository.save(user);
+        // Reload with room relationship eagerly loaded
+        return userAccountRepository.findByIdWithRoom(saved.getId()).orElse(saved);
     }
 
     /**
@@ -105,7 +107,9 @@ public class UserAccountService {
         user.setRole(role.toUpperCase());
         user.setRoomId(roomId);
 
-        return userAccountRepository.save(user);
+        UserAccount saved = userAccountRepository.save(user);
+        // Reload with room relationship eagerly loaded
+        return userAccountRepository.findByIdWithRoom(saved.getId()).orElse(saved);
     }
 
     /**
