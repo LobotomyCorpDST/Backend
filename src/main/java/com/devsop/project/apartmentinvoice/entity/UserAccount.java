@@ -45,4 +45,11 @@ public class UserAccount {
   @ManyToOne(fetch = FetchType.LAZY)
   @JoinColumn(name = "room_id")
   private Room room;
+
+  /**
+   * Multiple room numbers for USER role (comma-separated, e.g., "201,305,412")
+   * New field to support multiple room assignments
+   */
+  @Column(name = "room_ids", length = 500)
+  private String roomIds;
 }

@@ -43,7 +43,8 @@ public class UserAccountController {
                     u.getUsername(),
                     u.getRole(),
                     u.getRoomId(),
-                    u.getRoom() != null ? u.getRoom().getNumber() : null))
+                    u.getRoom() != null ? u.getRoom().getNumber() : null,
+                    u.getRoomIds()))
                 .toList();
         return ResponseEntity.ok(response);
     }
@@ -60,7 +61,8 @@ public class UserAccountController {
                             u.getUsername(),
                             u.getRole(),
                             u.getRoomId(),
-                            u.getRoom() != null ? u.getRoom().getNumber() : null)))
+                            u.getRoom() != null ? u.getRoom().getNumber() : null,
+                            u.getRoomIds())))
                 .orElse(ResponseEntity.notFound().build());
     }
 
@@ -74,14 +76,16 @@ public class UserAccountController {
                     request.getUsername(),
                     request.getPassword(),
                     request.getRole(),
-                    request.getRoomId());
+                    request.getRoomNumber(),
+                    request.getRoomNumbers());
 
             UserAccountResponse response = new UserAccountResponse(
                     created.getId(),
                     created.getUsername(),
                     created.getRole(),
                     created.getRoomId(),
-                    created.getRoom() != null ? created.getRoom().getNumber() : null);
+                    created.getRoom() != null ? created.getRoom().getNumber() : null,
+                    created.getRoomIds());
 
             return ResponseEntity.status(HttpStatus.CREATED).body(response);
         } catch (IllegalArgumentException e) {
@@ -90,7 +94,7 @@ public class UserAccountController {
     }
 
     /**
-     * Update user (username, role, roomId) - ADMIN only
+     * Update user (username, role, roomNumber) - ADMIN only
      */
     @PutMapping("/{id}")
     public ResponseEntity<?> updateUser(@PathVariable Long id,
@@ -100,14 +104,16 @@ public class UserAccountController {
                     id,
                     request.getUsername(),
                     request.getRole(),
-                    request.getRoomId());
+                    request.getRoomNumber(),
+                    request.getRoomNumbers());
 
             UserAccountResponse response = new UserAccountResponse(
                     updated.getId(),
                     updated.getUsername(),
                     updated.getRole(),
                     updated.getRoomId(),
-                    updated.getRoom() != null ? updated.getRoom().getNumber() : null);
+                    updated.getRoom() != null ? updated.getRoom().getNumber() : null,
+                    updated.getRoomIds());
 
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
@@ -149,14 +155,16 @@ public class UserAccountController {
         private String username;
         private String password;
         private String role; // ADMIN, STAFF, USER
-        private Long roomId; // Only for USER role
+        private Integer roomNumber; // Room number (e.g., 201, 305) - only for USER role (deprecated)
+        private String roomNumbers; // Comma-separated room numbers (e.g., "201, 305, 412") - new field
     }
 
     @Data
     public static class UpdateUserRequest {
         private String username;
         private String role;
-        private Long roomId;
+        private Integer roomNumber; // Room number (e.g., 201, 305) (deprecated)
+        private String roomNumbers; // Comma-separated room numbers (e.g., "201, 305, 412") - new field
     }
 
     @Data
@@ -169,7 +177,8 @@ public class UserAccountController {
         private final Long id;
         private final String username;
         private final String role;
-        private final Long roomId;
-        private final Integer roomNumber; // Room number (e.g., 201, 305) - null for non-USER roles
+        private final Long roomId; // Deprecated - for backward compatibility
+        private final Integer roomNumber; // Single room number (deprecated) - for backward compatibility
+        private final String roomNumbers; // Comma-separated room numbers (e.g., "201, 305, 412")
     }
 }

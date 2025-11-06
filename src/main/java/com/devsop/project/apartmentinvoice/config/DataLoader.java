@@ -92,6 +92,9 @@ public class DataLoader implements CommandLineRunner {
         List<Supply> supplies = createSupplyInventory();
         log.info("Created {} supply items", supplies.size());
 
+        // Create special test room 1101 with overdue invoices
+        createRoom1101WithOverdueInvoices();
+
         log.info("Data initialization complete!");
         log.info("Summary: {} rooms, {} tenants, {} leases, {} invoices, {} maintenance records, {} supplies",
                 rooms.size(), tenants.size(), leases.size(), invoices.size(), maintenances.size(), supplies.size());
@@ -420,5 +423,129 @@ public class DataLoader implements CommandLineRunner {
         }
 
         return supplies;
+    }
+
+    /**
+     * Create special test room 1101 with Thai tenant and overdue invoices
+     * to demonstrate interest calculation and debt accumulation
+     */
+    private void createRoom1101WithOverdueInvoices() {
+        log.info("Creating Room 1101 with overdue invoices...");
+
+        // 1. Create Room 1101 (11th floor)
+        Room room1101 = new Room();
+        room1101.setNumber(1101);
+        room1101.setStatus("OCCUPIED");
+        room1101.setCommonFeeBaht(BigDecimal.valueOf(100.00));
+        room1101.setGarbageFeeBaht(BigDecimal.valueOf(50.00));
+
+        // 2. Create Thai tenant
+        Tenant thaiTenant = new Tenant();
+        thaiTenant.setName("สมชาย ใจดี"); // Thai name
+        thaiTenant.setPhone("081-234-5678");
+        thaiTenant.setLineId("@somchai.th");
+        thaiTenant = tenantRepo.save(thaiTenant);
+
+        // 3. Assign tenant to room
+        room1101.setTenant(thaiTenant);
+        room1101 = roomRepo.save(room1101);
+
+        // 4. Create active lease
+        Lease lease1101 = new Lease();
+        lease1101.setRoom(room1101);
+        lease1101.setTenant(thaiTenant);
+        lease1101.setStartDate(LocalDate.now().minusMonths(6));
+        lease1101.setEndDate(LocalDate.now().plusMonths(6));
+        lease1101.setMonthlyRent(BigDecimal.valueOf(8000.00));
+        lease1101.setDepositBaht(BigDecimal.valueOf(16000.00));
+        lease1101.setStatus(Lease.Status.ACTIVE);
+        lease1101.setSettled(false);
+        leaseRepo.save(lease1101);
+
+        // 5. Invoice #1: Overdue (2 months ago, 60+ days overdue)
+        LocalDate overdueIssueDate = LocalDate.now().minusMonths(2).withDayOfMonth(1);
+        LocalDate overdueDueDate = overdueIssueDate.plusDays(10); // Due 2 months ago
+
+        Invoice overdueInvoice = new Invoice();
+        overdueInvoice.setRoom(room1101);
+        overdueInvoice.setTenant(thaiTenant);
+        overdueInvoice.setBillingYear(overdueIssueDate.getYear());
+        overdueInvoice.setBillingMonth(overdueIssueDate.getMonthValue());
+        overdueInvoice.setIssueDate(overdueIssueDate);
+        overdueInvoice.setDueDate(overdueDueDate);
+        overdueInvoice.setRentBaht(BigDecimal.valueOf(8000.00));
+        overdueInvoice.setElectricityUnits(BigDecimal.valueOf(150));
+        overdueInvoice.setElectricityRate(BigDecimal.valueOf(5.50));
+        overdueInvoice.setElectricityBaht(BigDecimal.valueOf(825.00));
+        overdueInvoice.setWaterUnits(BigDecimal.valueOf(15));
+        overdueInvoice.setWaterRate(BigDecimal.valueOf(18.00));
+        overdueInvoice.setWaterBaht(BigDecimal.valueOf(270.00));
+        overdueInvoice.setCommonFeeBaht(BigDecimal.valueOf(100.00));
+        overdueInvoice.setGarbageFeeBaht(BigDecimal.valueOf(50.00));
+        overdueInvoice.setOtherBaht(BigDecimal.ZERO);
+
+        BigDecimal originalTotal = overdueInvoice.getRentBaht()
+            .add(overdueInvoice.getElectricityBaht())
+            .add(overdueInvoice.getWaterBaht())
+            .add(overdueInvoice.getCommonFeeBaht())
+            .add(overdueInvoice.getGarbageFeeBaht());
+
+        // Calculate interest: 2 months overdue × 1.5% per month
+        long monthsOverdue = 2;
+        BigDecimal interestRate = BigDecimal.valueOf(0.015); // 1.5%
+        BigDecimal interest = originalTotal.multiply(interestRate)
+            .multiply(BigDecimal.valueOf(monthsOverdue))
+            .setScale(2, java.math.RoundingMode.HALF_UP);
+
+        overdueInvoice.setPreviousBalance(BigDecimal.ZERO);
+        overdueInvoice.setInterestCharge(interest);
+        overdueInvoice.setTotalBaht(originalTotal.add(interest));
+        overdueInvoice.setStatus(Invoice.Status.OVERDUE);
+        overdueInvoice.setPaidDate(null);
+        overdueInvoice = invoiceRepo.save(overdueInvoice);
+
+        log.info("Created overdue invoice #{} for Room 1101: Original {} + Interest {} = Total {}",
+                overdueInvoice.getId(), originalTotal, interest, overdueInvoice.getTotalBaht());
+
+        // 6. Invoice #2: Current month (pending, not overdue yet, but carries previous balance)
+        LocalDate currentIssueDate = LocalDate.now().withDayOfMonth(1);
+        LocalDate currentDueDate = currentIssueDate.plusDays(10); // Due in ~10 days
+
+        Invoice currentInvoice = new Invoice();
+        currentInvoice.setRoom(room1101);
+        currentInvoice.setTenant(thaiTenant);
+        currentInvoice.setBillingYear(currentIssueDate.getYear());
+        currentInvoice.setBillingMonth(currentIssueDate.getMonthValue());
+        currentInvoice.setIssueDate(currentIssueDate);
+        currentInvoice.setDueDate(currentDueDate);
+        currentInvoice.setRentBaht(BigDecimal.valueOf(8000.00));
+        currentInvoice.setElectricityUnits(BigDecimal.valueOf(145));
+        currentInvoice.setElectricityRate(BigDecimal.valueOf(5.50));
+        currentInvoice.setElectricityBaht(BigDecimal.valueOf(797.50));
+        currentInvoice.setWaterUnits(BigDecimal.valueOf(14));
+        currentInvoice.setWaterRate(BigDecimal.valueOf(18.00));
+        currentInvoice.setWaterBaht(BigDecimal.valueOf(252.00));
+        currentInvoice.setCommonFeeBaht(BigDecimal.valueOf(100.00));
+        currentInvoice.setGarbageFeeBaht(BigDecimal.valueOf(50.00));
+        currentInvoice.setOtherBaht(BigDecimal.ZERO);
+        currentInvoice.setPreviousBalance(overdueInvoice.getTotalBaht()); // Carry forward overdue balance
+        currentInvoice.setInterestCharge(BigDecimal.ZERO);
+
+        BigDecimal currentMonthCharges = currentInvoice.getRentBaht()
+            .add(currentInvoice.getElectricityBaht())
+            .add(currentInvoice.getWaterBaht())
+            .add(currentInvoice.getCommonFeeBaht())
+            .add(currentInvoice.getGarbageFeeBaht());
+
+        currentInvoice.setTotalBaht(currentMonthCharges.add(currentInvoice.getPreviousBalance()));
+        currentInvoice.setStatus(Invoice.Status.PENDING);
+        currentInvoice.setPaidDate(null);
+        currentInvoice = invoiceRepo.save(currentInvoice);
+
+        log.info("Created current invoice #{} for Room 1101: Current {} + Previous Balance {} = Total {}",
+                currentInvoice.getId(), currentMonthCharges, currentInvoice.getPreviousBalance(), currentInvoice.getTotalBaht());
+
+        log.info("✅ Room 1101 setup complete - Thai tenant '{}' with 1 overdue invoice (with interest) and 1 current invoice (with previous balance)",
+                thaiTenant.getName());
     }
 }

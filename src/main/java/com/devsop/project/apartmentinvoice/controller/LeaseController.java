@@ -240,6 +240,7 @@ public class LeaseController {
         .tenant(t)
         .room(r)
         .startDate(req.getStartDate())
+        .endDate(req.getEndDate())
         .monthlyRent(req.getMonthlyRent())
         .depositBaht(req.getDepositBaht())
         .customName(req.getCustomName())
@@ -264,6 +265,7 @@ public class LeaseController {
     private Ref tenant;
 
     private LocalDate startDate;
+    private LocalDate endDate;
 
     // ฟิลด์เสริม
     private BigDecimal monthlyRent;

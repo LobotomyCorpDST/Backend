@@ -7,7 +7,9 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.devsop.project.apartmentinvoice.entity.Room;
 import com.devsop.project.apartmentinvoice.entity.UserAccount;
+import com.devsop.project.apartmentinvoice.repository.RoomRepository;
 import com.devsop.project.apartmentinvoice.repository.UserAccountRepository;
 
 import lombok.RequiredArgsConstructor;
@@ -17,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 public class UserAccountService {
 
     private final UserAccountRepository userAccountRepository;
+    private final RoomRepository roomRepository;
     private final PasswordEncoder passwordEncoder;
 
     /**
@@ -42,10 +45,11 @@ public class UserAccountService {
 
     /**
      * Create new user account
-     * @throws IllegalArgumentException if username already exists or role is invalid
+     * @param roomNumber Room number (e.g., 201, 305) - will be converted to roomId internally
+     * @throws IllegalArgumentException if username already exists, role is invalid, or room not found
      */
     @Transactional
-    public UserAccount createUser(String username, String password, String role, Long roomId) {
+    public UserAccount createUser(String username, String password, String role, Integer roomNumber, String roomNumbers) {
         // Validate username uniqueness
         if (userAccountRepository.findByUsername(username).isPresent()) {
             throw new IllegalArgumentException("Username already exists: " + username);
@@ -65,7 +69,32 @@ public class UserAccountService {
         user.setUsername(username);
         user.setPassword(passwordEncoder.encode(password));
         user.setRole(role.toUpperCase());
-        user.setRoomId(roomId);
+
+        // Handle multiple room numbers (new field) - takes precedence
+        if (roomNumbers != null && !roomNumbers.trim().isEmpty()) {
+            // Validate all room numbers exist
+            String[] roomNumArray = roomNumbers.split(",");
+            for (String numStr : roomNumArray) {
+                Integer num = Integer.parseInt(numStr.trim());
+                Room room = roomRepository.findByNumber(num)
+                        .orElseThrow(() -> new IllegalArgumentException("Room not found with number: " + num));
+            }
+            user.setRoomIds(roomNumbers);
+
+            // For backward compatibility, set roomId to the first room
+            Integer firstRoom = Integer.parseInt(roomNumArray[0].trim());
+            Room room = roomRepository.findByNumber(firstRoom).orElse(null);
+            if (room != null) {
+                user.setRoomId(room.getId());
+            }
+        }
+        // Fallback to single room number (deprecated)
+        else if (roomNumber != null) {
+            Room room = roomRepository.findByNumber(roomNumber)
+                    .orElseThrow(() -> new IllegalArgumentException("Room not found with number: " + roomNumber));
+            user.setRoomId(room.getId());
+            user.setRoomIds(roomNumber.toString()); // Store as single number in roomIds too
+        }
 
         UserAccount saved = userAccountRepository.save(user);
         // Reload with room relationship eagerly loaded
@@ -74,10 +103,11 @@ public class UserAccountService {
 
     /**
      * Update user account (username and role only)
-     * @throws IllegalArgumentException if user not found or trying to delete last admin
+     * @param roomNumber Room number (e.g., 201, 305) - will be converted to roomId internally
+     * @throws IllegalArgumentException if user not found, trying to delete last admin, or room not found
      */
     @Transactional
-    public UserAccount updateUser(Long id, String username, String role, Long roomId) {
+    public UserAccount updateUser(Long id, String username, String role, Integer roomNumber, String roomNumbers) {
         UserAccount user = userAccountRepository.findById(id)
                 .orElseThrow(() -> new IllegalArgumentException("User not found with ID: " + id));
 
@@ -105,7 +135,35 @@ public class UserAccountService {
         }
 
         user.setRole(role.toUpperCase());
-        user.setRoomId(roomId);
+
+        // Handle multiple room numbers (new field) - takes precedence
+        if (roomNumbers != null && !roomNumbers.trim().isEmpty()) {
+            // Validate all room numbers exist
+            String[] roomNumArray = roomNumbers.split(",");
+            for (String numStr : roomNumArray) {
+                Integer num = Integer.parseInt(numStr.trim());
+                Room room = roomRepository.findByNumber(num)
+                        .orElseThrow(() -> new IllegalArgumentException("Room not found with number: " + num));
+            }
+            user.setRoomIds(roomNumbers);
+
+            // For backward compatibility, set roomId to the first room
+            Integer firstRoom = Integer.parseInt(roomNumArray[0].trim());
+            Room room = roomRepository.findByNumber(firstRoom).orElse(null);
+            if (room != null) {
+                user.setRoomId(room.getId());
+            }
+        }
+        // Fallback to single room number (deprecated)
+        else if (roomNumber != null) {
+            Room room = roomRepository.findByNumber(roomNumber)
+                    .orElseThrow(() -> new IllegalArgumentException("Room not found with number: " + roomNumber));
+            user.setRoomId(room.getId());
+            user.setRoomIds(roomNumber.toString()); // Store as single number in roomIds too
+        } else {
+            user.setRoomId(null);
+            user.setRoomIds(null);
+        }
 
         UserAccount saved = userAccountRepository.save(user);
         // Reload with room relationship eagerly loaded

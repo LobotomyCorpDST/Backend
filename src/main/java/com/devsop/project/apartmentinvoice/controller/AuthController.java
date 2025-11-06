@@ -50,7 +50,7 @@ public class AuthController {
     // ✅ STEP 2: Allow static guest login (no DB needed)
     if ("guest".equalsIgnoreCase(req.getUsername()) && "guest123".equals(req.getPassword())) {
       String token = jwtTokenProvider.generate("guest", "GUEST");
-      return ResponseEntity.ok(new LoginResponse(token, "guest", "GUEST", null));
+      return ResponseEntity.ok(new LoginResponse(token, "guest", "GUEST", null, null));
     }
 
     // ✅ Default: normal user login via DB
@@ -64,7 +64,7 @@ public class AuthController {
     }
 
     String token = jwtTokenProvider.generate(user.getUsername(), user.getRole());
-    return ResponseEntity.ok(new LoginResponse(token, user.getUsername(), user.getRole(), user.getRoomId()));
+    return ResponseEntity.ok(new LoginResponse(token, user.getUsername(), user.getRole(), user.getRoomId(), user.getRoomIds()));
   }
 
   /* ===== DTOs ===== */
@@ -80,7 +80,8 @@ public class AuthController {
     private final String token;
     private final String username;
     private final String role;
-    private final Long roomId;
+    private final Long roomId; // Deprecated - for backward compatibility
+    private final String roomNumbers; // Comma-separated room numbers (e.g., "201, 305, 412")
   }
 
   @Data
