@@ -91,30 +91,19 @@ public class DocumentController {
   }
 
   /**
-   * Download a document file.
-   *
-   * @param id Document ID
-   * @return File content as byte array
+   * [ปรับปรุง] Download by redirecting to a GCS Signed URL.
    */
   @GetMapping("/{id}/download")
-  public ResponseEntity<byte[]> downloadDocument(@PathVariable Long id) {
+  public ResponseEntity<Void> downloadDocument(@PathVariable Long id) {
     Document document = documentService.getDocumentById(id);
-    byte[] fileContent = documentService.getFileContent(id);
+    String signedUrl = documentService.generateSignedUrlForDownload(id);
 
-    // Determine content type
-    MediaType mediaType = MediaType.APPLICATION_OCTET_STREAM;
-    if (document.getMimeType() != null) {
-      try {
-        mediaType = MediaType.parseMediaType(document.getMimeType());
-      } catch (Exception e) {
-        // Use default if parsing fails
-      }
-    }
+    HttpHeaders headers = new HttpHeaders();
+    headers.setLocation(java.net.URI.create(signedUrl));
+    headers.add(HttpHeaders.CONTENT_DISPOSITION,
+        "attachment; filename=\"" + document.getFileName() + "\"");
 
-    return ResponseEntity.ok()
-      .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + document.getFileName() + "\"")
-      .contentType(mediaType)
-      .body(fileContent);
+    return new ResponseEntity<>(headers, HttpStatus.FOUND);
   }
 
   /**
