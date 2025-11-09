@@ -79,8 +79,9 @@ public class SecurityConfig {
             "http://127.0.0.1:32080",
             "http://localhost:32033",
             "http://127.0.0.1:32033",
-            "http://34.87.14.8",
-            "http://34.87.14.8:80"
+            "http://35.185.182.150",
+            "http://35.185.182.150:80"
+            
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","Origin"));
