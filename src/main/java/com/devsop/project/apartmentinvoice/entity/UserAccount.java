@@ -2,9 +2,12 @@ package com.devsop.project.apartmentinvoice.entity;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -30,7 +33,23 @@ public class UserAccount {
   /**
    * Room ID for USER role (nullable - only used for USER role)
    * Links a USER account to their specific room for access control
+   * Kept for backward compatibility
    */
-  @Column(name = "room_id")
+  @Column(name = "room_id", insertable = false, updatable = false)
   private Long roomId;
+
+  /**
+   * Room relationship for USER role (nullable - only used for USER role)
+   * Lazy loaded to avoid unnecessary queries for ADMIN/STAFF/GUEST
+   */
+  @ManyToOne(fetch = FetchType.LAZY)
+  @JoinColumn(name = "room_id")
+  private Room room;
+
+  /**
+   * Multiple room numbers for USER role (comma-separated, e.g., "201,305,412")
+   * New field to support multiple room assignments
+   */
+  @Column(name = "room_ids", length = 500)
+  private String roomIds;
 }

@@ -23,4 +23,6 @@ public class MaintenanceResponse {
   private LocalDate scheduledDate;
   private LocalDate completedDate;
   private BigDecimal costBaht;
+  private String responsiblePerson;
+  private String responsiblePhone;
 }

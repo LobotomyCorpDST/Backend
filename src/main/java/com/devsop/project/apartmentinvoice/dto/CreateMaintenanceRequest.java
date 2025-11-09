@@ -23,4 +23,6 @@ public class CreateMaintenanceRequest {
 
   private LocalDate scheduledDate;
   private BigDecimal costBaht;
+  private String responsiblePerson;
+  private String responsiblePhone;
 }

@@ -23,10 +23,13 @@ import com.devsop.project.apartmentinvoice.dto.FloorSummaryDTO;
 import com.devsop.project.apartmentinvoice.dto.MonthlyTrendDTO;
 import com.devsop.project.apartmentinvoice.dto.ReportSummaryDTO;
 import com.devsop.project.apartmentinvoice.dto.RoomComparisonDTO;
+import com.devsop.project.apartmentinvoice.dto.RoomTrendDTO;
 import com.devsop.project.apartmentinvoice.entity.Invoice;
+import com.devsop.project.apartmentinvoice.entity.Lease;
 import com.devsop.project.apartmentinvoice.entity.Room;
 import com.devsop.project.apartmentinvoice.entity.Tenant;
 import com.devsop.project.apartmentinvoice.repository.InvoiceRepository;
+import com.devsop.project.apartmentinvoice.repository.LeaseRepository;
 import com.devsop.project.apartmentinvoice.repository.RoomRepository;
 import com.devsop.project.apartmentinvoice.repository.TenantRepository;
 
@@ -40,6 +43,7 @@ public class ReportController {
   private final InvoiceRepository invoiceRepo;
   private final RoomRepository roomRepo;
   private final TenantRepository tenantRepo;
+  private final LeaseRepository leaseRepo;
 
   /**
    * Summary report for a specific room (all invoices)
@@ -502,6 +506,140 @@ public class ReportController {
 
       result.add(dto);
     }
+
+    return result;
+  }
+
+  /**
+   * Get monthly trend data for all rooms owned by a specific tenant
+   * Returns a list of RoomTrendDTO, each containing monthly trends for one room
+   */
+  @GetMapping("/tenant-rooms/{tenantId}")
+  public List<RoomTrendDTO> getTenantRoomsTrend(
+      @PathVariable Long tenantId,
+      @RequestParam(defaultValue = "6") Integer months
+  ) {
+    // Verify tenant exists
+    Tenant tenant = tenantRepo.findById(tenantId)
+        .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Tenant not found"));
+
+    // Limit months to reasonable range
+    if (months > 24) months = 24;
+    if (months < 1) months = 1;
+
+    // Get all active leases for this tenant
+    List<Lease> activeLeases = leaseRepo.findByTenantIdWithRefs(tenantId).stream()
+        .filter(lease -> lease.getStatus() == Lease.Status.ACTIVE)
+        .collect(Collectors.toList());
+
+    // Build room trend data for each room
+    List<RoomTrendDTO> result = new ArrayList<>();
+    DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM");
+
+    for (Lease lease : activeLeases) {
+      Room room = lease.getRoom();
+
+      // Get all invoices for this room
+      List<Invoice> roomInvoices = invoiceRepo.findByRoom_Id(room.getId());
+
+      // Group by year-month
+      Map<String, List<Invoice>> byMonth = new HashMap<>();
+      for (Invoice inv : roomInvoices) {
+        if (inv.getBillingYear() != null && inv.getBillingMonth() != null) {
+          String key = String.format("%04d-%02d", inv.getBillingYear(), inv.getBillingMonth());
+          byMonth.computeIfAbsent(key, k -> new ArrayList<>()).add(inv);
+        }
+      }
+
+      // Build monthly trend data for last N months
+      List<MonthlyTrendDTO> monthlyTrends = new ArrayList<>();
+      YearMonth current = YearMonth.now();
+
+      for (int i = months - 1; i >= 0; i--) {
+        YearMonth targetMonth = current.minusMonths(i);
+        String key = targetMonth.format(formatter);
+
+        List<Invoice> monthInvoices = byMonth.getOrDefault(key, new ArrayList<>());
+
+        MonthlyTrendDTO trend = MonthlyTrendDTO.builder()
+            .month(key)
+            .electricityUnits(sumField(monthInvoices, Invoice::getElectricityUnits))
+            .electricityBaht(sumField(monthInvoices, Invoice::getElectricityBaht))
+            .waterUnits(sumField(monthInvoices, Invoice::getWaterUnits))
+            .waterBaht(sumField(monthInvoices, Invoice::getWaterBaht))
+            .build();
+
+        monthlyTrends.add(trend);
+      }
+
+      // Create RoomTrendDTO for this room
+      RoomTrendDTO roomTrend = RoomTrendDTO.builder()
+          .roomId(room.getId())
+          .roomNumber(room.getNumber())
+          .monthlyTrends(monthlyTrends)
+          .build();
+
+      result.add(roomTrend);
+    }
+
+    // Sort by room number
+    result.sort((a, b) -> a.getRoomNumber().compareTo(b.getRoomNumber()));
+
+    return result;
+  }
+
+  /**
+   * Get room-level comparison data for a specific month (all rooms or filtered by floor)
+   * Returns usage data for each room in the specified month, optionally filtered by floor
+   */
+  @GetMapping("/month-all-rooms/{year}/{month}")
+  public List<RoomComparisonDTO> getMonthAllRoomsComparison(
+      @PathVariable Integer year,
+      @PathVariable Integer month,
+      @RequestParam(required = false) Integer floor
+  ) {
+    // Get all invoices for the specified month
+    List<Invoice> invoices = invoiceRepo.findByBillingYearAndBillingMonth(year, month);
+
+    // Filter by floor if specified
+    if (floor != null) {
+      invoices = invoices.stream()
+          .filter(inv -> inv.getRoom() != null &&
+                         inv.getRoom().getNumber() != null &&
+                         inv.getRoom().getNumber() / 100 == floor)
+          .collect(Collectors.toList());
+    }
+
+    // Group by room
+    Map<Integer, List<Invoice>> byRoom = new HashMap<>();
+    for (Invoice inv : invoices) {
+      if (inv.getRoom() != null && inv.getRoom().getNumber() != null) {
+        Integer roomNumber = inv.getRoom().getNumber();
+        byRoom.computeIfAbsent(roomNumber, k -> new ArrayList<>()).add(inv);
+      }
+    }
+
+    // Build room comparison data
+    List<RoomComparisonDTO> result = new ArrayList<>();
+
+    for (Map.Entry<Integer, List<Invoice>> entry : byRoom.entrySet()) {
+      Integer roomNumber = entry.getKey();
+      List<Invoice> roomInvoices = entry.getValue();
+
+      RoomComparisonDTO dto = RoomComparisonDTO.builder()
+          .roomNumber(roomNumber)
+          .electricityUnits(sumField(roomInvoices, Invoice::getElectricityUnits))
+          .electricityBaht(sumField(roomInvoices, Invoice::getElectricityBaht))
+          .waterUnits(sumField(roomInvoices, Invoice::getWaterUnits))
+          .waterBaht(sumField(roomInvoices, Invoice::getWaterBaht))
+          .isSelected(false) // No room is pre-selected in this view
+          .build();
+
+      result.add(dto);
+    }
+
+    // Sort by room number
+    result.sort((a, b) -> a.getRoomNumber().compareTo(b.getRoomNumber()));
 
     return result;
   }
