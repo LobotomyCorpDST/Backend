@@ -79,9 +79,10 @@ public class SecurityConfig {
             "http://127.0.0.1:32080",
             "http://localhost:32033",
             "http://127.0.0.1:32033",
-            "http://35.185.182.150",
-            "http://35.185.182.150:80"
-            
+            "http://34.36.33.7/",
+            "http://34.36.33.7/:80",
+            "http://apt.krentiz.dev",
+            "https://apt.krentiz.dev"
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
         cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","Origin"));
