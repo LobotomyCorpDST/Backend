@@ -5,7 +5,6 @@ resources:
   - deployment.yaml
   - service-nodeport.yaml
   - mysql.yaml
-  - persistent-volume.yaml
   - persistent-volume-claim.yaml
   - service-account.yaml
 images:
