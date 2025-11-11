@@ -28,19 +28,20 @@ spec:
     metadata:
       labels:
         app: mysql
-  containers:
-    - name: mysql
-      image: mysql:8.0
-      ports:
-        - containerPort: 3306
-      env:
-        - name: MYSQL_ROOT_PASSWORD
-          value: "admin123"
-        - name: MYSQL_DATABASE
-          value: "apartment_db"
-      volumeMounts:
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "admin123"
+            - name: MYSQL_DATABASE
+              value: "apartment_db"
+          volumeMounts:
+            - name: mysql-data
+              mountPath: /var/lib/mysql
+      volumes:
         - name: mysql-data
-          mountPath: /var/lib/mysql
-  volumes:
-    - name: mysql-data
-      emptyDir: {}
+          emptyDir: {}
