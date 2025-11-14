@@ -39,6 +39,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // ---------- Public endpoints ----------
                 .requestMatchers("/", "/error", "/health", "/api/auth/**", "/h2-console/**", "/actuator/health", "/actuator/health/**").permitAll()
+                .requestMatchers(HttpMethod.GET, "/api", "/api/").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                 // ---------- ADMIN-only endpoints (User Management) ----------
@@ -72,21 +73,15 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(List.of(
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://localhost:32080",
-            "http://127.0.0.1:32080",
-            "http://localhost:32033",
-            "http://127.0.0.1:32033",
-            "http://34.36.33.7/",
-            "http://34.36.33.7/:80",
-            "http://apt.krentiz.dev",
-            "https://apt.krentiz.dev"
+        cfg.setAllowedOriginPatterns(List.of(
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "https://apt.krentiz.dev",
+            "https://*.apt.krentiz.dev"
         ));
         cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","Origin"));
-        cfg.setExposedHeaders(List.of("Authorization"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setExposedHeaders(List.of("Authorization","Content-Disposition"));
         cfg.setAllowCredentials(true);
         cfg.setMaxAge(Duration.ofHours(1));
 
