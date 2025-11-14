@@ -1,0 +1,10 @@
+apiVersion: cloud.google.com/v1
+kind: BackendConfig
+metadata:
+  name: backend-backendconfig  
+  namespace: doomed-apt
+spec:
+  healthCheck:
+    type: HTTP
+    requestPath: /api/health 
+    port: 8080
