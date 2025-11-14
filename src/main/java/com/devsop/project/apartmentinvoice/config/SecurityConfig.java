@@ -41,6 +41,10 @@ public class SecurityConfig {
                 .requestMatchers("/", "/error", "/health", "/api/auth/**", "/h2-console/**", "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api", "/api/").permitAll()
                 .requestMatchers(HttpMethod.POST, "/api", "/api/").permitAll()
+                .requestMatchers(HttpMethod.PUT, "/api", "/api/").permitAll()
+                .requestMatchers(HttpMethod.PATCH, "/api", "/api/").permitAll()
+                .requestMatchers(HttpMethod.DELETE, "/api", "/api/").permitAll()
+                .requestMatchers(HttpMethod.HEAD, "/api", "/api/").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                 // ---------- ADMIN-only endpoints (User Management) ----------
