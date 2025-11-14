@@ -11,7 +11,7 @@ public class CorsConfig implements WebMvcConfigurer {
   public void addCorsMappings(CorsRegistry registry) {
     registry.addMapping("/**")
         // dev: ยอมจาก localhost ทุกพอร์ต (เช่น Vite/Next/React)
-        .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*")
+        .allowedOriginPatterns("http://localhost:*", "http://127.0.0.1:*", "https://apt.krentiz.dev:*")
         .allowedMethods("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS")
         .allowedHeaders("*")
         .exposedHeaders("Content-Disposition")
