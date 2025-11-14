@@ -51,7 +51,7 @@ spec:
               value: "false"
           readinessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: 8080
             initialDelaySeconds: 60
             periodSeconds: 10
@@ -59,7 +59,7 @@ spec:
             failureThreshold: 6
           livenessProbe:
             httpGet:
-              path: /health
+              path: /api/health
               port: 8080
             initialDelaySeconds: 90
             periodSeconds: 20

@@ -8,7 +8,7 @@ metadata:
   annotations:
     cloud.google.com/backend-config: '{"default": "backend-backendconfig"}'
 spec:
-  type: NodePort
+  type: ClusterIP
   selector:
     app: backend
   ports:
