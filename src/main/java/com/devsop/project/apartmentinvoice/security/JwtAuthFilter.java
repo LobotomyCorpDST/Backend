@@ -11,6 +11,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.http.HttpMethod;
 
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
@@ -32,16 +33,20 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             HttpServletResponse response,
             FilterChain filterChain) throws ServletException, IOException {
 
+        if (request.getMethod().equals(HttpMethod.OPTIONS.name())) {
+            filterChain.doFilter(request, response);
+            return;
+        }
         String header = request.getHeader("Authorization");
 
         // ✅ Step 1: Handle Guest token shortcut (from frontend localStorage)
         if (header != null && header.equals("Bearer guest-token")) {
             if (SecurityContextHolder.getContext().getAuthentication() == null) {
-                List<GrantedAuthority> authorities =
-                        Collections.singletonList(new SimpleGrantedAuthority("ROLE_GUEST"));
+                List<GrantedAuthority> authorities
+                        = Collections.singletonList(new SimpleGrantedAuthority("ROLE_GUEST"));
 
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken("guest", null, authorities);
+                UsernamePasswordAuthenticationToken auth
+                        = new UsernamePasswordAuthenticationToken("guest", null, authorities);
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
@@ -64,11 +69,11 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     role = "ROLE_GUEST"; // fallback
                 }
 
-                List<GrantedAuthority> authorities =
-                        Collections.singletonList(new SimpleGrantedAuthority(role));
+                List<GrantedAuthority> authorities
+                        = Collections.singletonList(new SimpleGrantedAuthority(role));
 
-                UsernamePasswordAuthenticationToken auth =
-                        new UsernamePasswordAuthenticationToken(username, null, authorities);
+                UsernamePasswordAuthenticationToken auth
+                        = new UsernamePasswordAuthenticationToken(username, null, authorities);
                 auth.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
                 SecurityContextHolder.getContext().setAuthentication(auth);
             }
