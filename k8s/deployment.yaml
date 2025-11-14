@@ -28,8 +28,8 @@ spec:
         command: ['sh', '-c', 'until nc -z db 3306; do echo "Waiting for database..."; sleep 2; done']
       containers:
         - name: backend
-          image: mmmmnl/lobotomy:v.1.1
-          imagePullPolicy: IfNotPresent
+          image: mmmmnl/lobotomy:v.1.2
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http
