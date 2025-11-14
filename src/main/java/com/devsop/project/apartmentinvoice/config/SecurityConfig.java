@@ -1,6 +1,5 @@
 package com.devsop.project.apartmentinvoice.config;
 
-import java.time.Duration;
 import java.util.List;
 
 import org.springframework.context.annotation.Bean;
@@ -72,23 +71,17 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration cfg = new CorsConfiguration();
-        cfg.setAllowedOrigins(List.of(
-            "http://localhost:3000",
-            "http://127.0.0.1:3000",
-            "http://localhost:32080",
-            "http://127.0.0.1:32080",
-            "http://localhost:32033",
-            "http://127.0.0.1:32033",
-            "http://34.36.33.7/",
-            "http://34.36.33.7/:80",
-            "http://apt.krentiz.dev",
-            "https://apt.krentiz.dev"
+        cfg.setAllowedOriginPatterns(List.of(
+            "http://localhost:*",
+            "http://127.0.0.1:*",
+            "https://apt.krentiz.dev",
+            "https://*.apt.krentiz.dev"
         ));
-        cfg.setAllowedMethods(List.of("GET","POST","PUT","PATCH","DELETE","OPTIONS"));
-        cfg.setAllowedHeaders(List.of("Authorization","Content-Type","Accept","Origin"));
-        cfg.setExposedHeaders(List.of("Authorization"));
+        cfg.setAllowedMethods(List.of("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS"));
+        cfg.setAllowedHeaders(List.of("*"));
+        cfg.setExposedHeaders(List.of("Authorization", "Content-Disposition"));
         cfg.setAllowCredentials(true);
-        cfg.setMaxAge(Duration.ofHours(1));
+        cfg.setMaxAge(3600L);
 
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", cfg);
