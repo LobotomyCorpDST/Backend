@@ -8,6 +8,7 @@ resources:
   - persistent-volume-claim.yaml
   - service-account.yaml
   - backend-config.yaml
+  - mysql-pvc.yaml
 images:
   - name: mmmmnl/lobotomy
     newTag: v.1.0

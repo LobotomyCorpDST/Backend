@@ -52,4 +52,4 @@ spec:
       volumes:
         - name: mysql-data
           persistentVolumeClaim:
-            claimName: uploads-pvc
+            claimName: mysql-data-pvc
