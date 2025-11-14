@@ -37,36 +37,27 @@ public class SecurityConfig {
             .sessionManagement(sm -> sm.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
 
             .authorizeHttpRequests(auth -> auth
-                // ---------- Public endpoints ----------
+                // ---------- 1. PUBLIC ENDPOINTS (must stay first) ----------
                 .requestMatchers("/", "/error", "/health", "/api/auth/**", "/h2-console/**", "/actuator/health", "/actuator/health/**").permitAll()
                 .requestMatchers(HttpMethod.GET, "/api", "/api/").permitAll()
-                .requestMatchers(HttpMethod.POST, "/api", "/api/").permitAll()
-                .requestMatchers(HttpMethod.PUT, "/api", "/api/").permitAll()
-                .requestMatchers(HttpMethod.PATCH, "/api", "/api/").permitAll()
-                .requestMatchers(HttpMethod.DELETE, "/api", "/api/").permitAll()
-                .requestMatchers(HttpMethod.HEAD, "/api", "/api/").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
-                // ---------- ADMIN-only endpoints (User Management) ----------
+                // ---------- 2. SPECIFIC ROLE ENDPOINTS ----------
                 .requestMatchers("/api/users/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
-
-                // ---------- STAFF/USER-specific endpoints (Dashboard + Maintenance only) ----------
                 .requestMatchers(HttpMethod.GET, "/api/dashboard/**", "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF", "ROLE_USER", "USER")
                 .requestMatchers(HttpMethod.POST, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF", "ROLE_USER", "USER")
                 .requestMatchers(HttpMethod.PUT, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
                 .requestMatchers(HttpMethod.PATCH, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
                 .requestMatchers(HttpMethod.DELETE, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
-
-                // ---------- USER role (Read + Create Maintenance) ----------
                 .requestMatchers(HttpMethod.GET, "/api/**").hasAnyAuthority("ROLE_GUEST", "GUEST", "ROLE_USER", "USER", "ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
 
-                // ---------- ADMIN full write permissions ----------
+                // ---------- 3. GENERAL ADMIN RULES ----------
                 .requestMatchers(HttpMethod.POST, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                 .requestMatchers(HttpMethod.PUT, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                 .requestMatchers(HttpMethod.PATCH, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
                 .requestMatchers(HttpMethod.DELETE, "/api/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
 
-                // ---------- Everything else ----------
+                // ---------- 4. EVERYTHING ELSE ----------
                 .anyRequest().authenticated()
             )
 
