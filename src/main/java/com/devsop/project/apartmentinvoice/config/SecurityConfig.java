@@ -38,7 +38,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // ---------- 1. PUBLIC ENDPOINTS (must stay first) ----------
                 .requestMatchers("/", "/error", "/api/health", "/api/auth/**", "/h2-console/**", "/actuator/health", "/actuator/health/**").permitAll()
-                .requestMatchers(HttpMethod.GET, "/api", "/api/").permitAll()
+                // .requestMatchers(HttpMethod.GET, "/api", "/api/").permitAll()
                 .requestMatchers(HttpMethod.OPTIONS, "/**").permitAll()
 
                 // ---------- 2. SPECIFIC ROLE ENDPOINTS ----------
