@@ -67,6 +67,14 @@ public class AuthController {
     return ResponseEntity.ok(new LoginResponse(token, user.getUsername(), user.getRole(), user.getRoomId(), user.getRoomIds()));
   }
 
+  @PostMapping("/logout")
+  public ResponseEntity<Map<String, String>> logout() {
+      // ในระบบ JWT (Stateless) การ logout ฝั่งเซิร์ฟเวอร์
+      // มักจะเป็นแค่การ "รับทราบ" ว่า client จะลบ token เอง
+      // เราแค่ส่ง 200 OK กลับไปก็พอ
+      return ResponseEntity.ok(Map.of("message", "Logout successful"));
+  }
+
   /* ===== DTOs ===== */
 
   @Data
