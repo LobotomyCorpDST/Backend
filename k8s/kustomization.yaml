@@ -10,5 +10,5 @@ resources:
   - backend-config.yaml
   - mysql-pvc.yaml
 images:
-  - name: mmmmnl/lobotomy
+  - name: mmmmnl/lobotomycorp
     newTag: v.1.1
