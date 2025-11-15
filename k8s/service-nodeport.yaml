@@ -5,6 +5,8 @@ metadata:
   namespace: doomed-apt
   labels:
     app: backend
+  annotations:
+    cloud.google.com/backend-config: '{"default": "backend-backendconfig"}'
 spec:
   type: ClusterIP
   selector:

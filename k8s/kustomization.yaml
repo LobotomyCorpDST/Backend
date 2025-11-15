@@ -11,4 +11,4 @@ resources:
   - mysql-pvc.yaml
 images:
   - name: mmmmnl/lobotomy
-    newTag: v.1.0
+    newTag: v.1.1
