@@ -6,8 +6,8 @@ metadata:
 spec:
   selector:
     matchLabels:
-      app: backend 
-  podMetricsEndpoints:
-  - port: http 
+      app: backend
+  endpoints:
+  - port: http
     path: /actuator/prometheus
     interval: 30s
