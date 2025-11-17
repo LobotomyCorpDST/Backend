@@ -150,7 +150,7 @@ file:
 
 observability:
   otel:
-    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://localhost:4318/v1/traces}
+    endpoint: ${OTEL_EXPORTER_OTLP_ENDPOINT:http://otel-collector-svc.doomed-apt.svc.cluster.local:4318/v1/traces}
     headers: ${OTEL_EXPORTER_OTLP_HEADERS:}
 
 logging:
