@@ -1,0 +1,39 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: doomed-apt
+  labels:
+    app: otel-collector
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: otel-collector
+  template:
+    metadata:
+      labels:
+        app: otel-collector
+    spec:
+      serviceAccountName: backend-ksa
+      containers:
+      - name: collector
+        image: otel/opentelemetry-collector-contrib:0.98.0 
+        command: ["/otel-collector-contrib", "--config=/conf/otel-config.yaml"]
+        ports:
+        - containerPort: 4318
+          name: otlp-http
+        volumeMounts:
+        - name: otel-config-volume
+          mountPath: /conf
+        resources: 
+          requests:
+            cpu: "200m"
+            memory: "256Mi"
+          limits:
+            cpu: "500m"
+            memory: "512Mi"
+      volumes:
+      - name: otel-config-volume
+        configMap:
+          name: otel-collector-config

@@ -18,6 +18,7 @@ import com.devsop.project.apartmentinvoice.entity.Lease;
 import com.devsop.project.apartmentinvoice.entity.Maintenance;
 import com.devsop.project.apartmentinvoice.entity.Maintenance.Status;
 import com.devsop.project.apartmentinvoice.entity.Room;
+import com.devsop.project.apartmentinvoice.metrics.InvoiceMetrics;
 import com.devsop.project.apartmentinvoice.repository.InvoiceRepository;
 import com.devsop.project.apartmentinvoice.repository.LeaseRepository;
 import com.devsop.project.apartmentinvoice.repository.MaintenanceRepository;
@@ -39,6 +40,7 @@ public class CsvImportService {
   private final LeaseRepository leaseRepository;
   private final MaintenanceRepository maintenanceRepository;
   private final InvoiceService invoiceService;
+  private final InvoiceMetrics invoiceMetrics;
 
   /**
    * Import invoices from CSV file.
@@ -47,11 +49,17 @@ public class CsvImportService {
    * @return ImportResult with success/failure counts and error details
    */
   public ImportResult importInvoicesFromCsv(MultipartFile file) {
+    return invoiceMetrics.recordImport(() -> importCsvInternal(file));
+  }
+
+  private ImportResult importCsvInternal(MultipartFile file) {
     if (file.isEmpty()) {
+      invoiceMetrics.incrementImportErrors();
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "CSV file is empty");
     }
 
     if (!file.getOriginalFilename().endsWith(".csv")) {
+      invoiceMetrics.incrementImportErrors();
       throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "File must be a CSV file");
     }
 
@@ -75,11 +83,12 @@ public class CsvImportService {
         try {
           processLine(line, lineNumber, result);
         } catch (Exception e) {
-          result.addError(lineNumber, "Error processing line: " + e.getMessage());
+          recordImportError(result, lineNumber, "Error processing line: " + e.getMessage());
         }
       }
 
     } catch (Exception e) {
+      invoiceMetrics.incrementImportErrors();
       throw new ResponseStatusException(
         HttpStatus.INTERNAL_SERVER_ERROR,
         "Failed to read CSV file: " + e.getMessage()
@@ -87,6 +96,11 @@ public class CsvImportService {
     }
 
     return result;
+  }
+
+  private void recordImportError(ImportResult result, int lineNumber, String message) {
+    result.addError(lineNumber, message);
+    invoiceMetrics.incrementImportErrors();
   }
 
   /**
@@ -98,7 +112,7 @@ public class CsvImportService {
 
     // Validate: Must have 7 columns
     if (parts.length < 7) {
-      result.addError(lineNumber, "Invalid CSV format. Expected 7 columns, found " + parts.length);
+      recordImportError(result, lineNumber, "Invalid CSV format. Expected 7 columns, found " + parts.length);
       return;
     }
 
@@ -114,14 +128,14 @@ public class CsvImportService {
 
       // Validate billing month
       if (billingMonth < 1 || billingMonth > 12) {
-        result.addError(lineNumber, "Invalid billing month: " + billingMonth);
+        recordImportError(result, lineNumber, "Invalid billing month: " + billingMonth);
         return;
       }
 
       // Find room by number
       Optional<Room> roomOpt = roomRepository.findByNumber(roomNumber);
       if (roomOpt.isEmpty()) {
-        result.addError(lineNumber, "Room not found: " + roomNumber);
+        recordImportError(result, lineNumber, "Room not found: " + roomNumber);
         return;
       }
       Room room = roomOpt.get();
@@ -133,7 +147,7 @@ public class CsvImportService {
         billingMonth
       );
       if (existingInvoice.isPresent()) {
-        result.addError(lineNumber, "Invoice already exists for room " + roomNumber + " in " + billingYear + "-" + billingMonth);
+        recordImportError(result, lineNumber, "Invoice already exists for room " + roomNumber + " in " + billingYear + "-" + billingMonth);
         return;
       }
 
@@ -204,11 +218,12 @@ public class CsvImportService {
       // Save invoice
       invoiceRepository.save(invoice);
       result.incrementSuccess();
+      invoiceMetrics.incrementInvoiceCreated();
 
     } catch (NumberFormatException e) {
-      result.addError(lineNumber, "Invalid number format: " + e.getMessage());
+      recordImportError(result, lineNumber, "Invalid number format: " + e.getMessage());
     } catch (Exception e) {
-      result.addError(lineNumber, "Unexpected error: " + e.getMessage());
+      recordImportError(result, lineNumber, "Unexpected error: " + e.getMessage());
     }
   }
 

@@ -9,6 +9,10 @@ resources:
   - service-account.yaml
   - backend-config.yaml
   - mysql-pvc.yaml
+  - backend-pod-monitoring.yaml
+  - otel-collector-deployment.yaml
+  - otel-collector-service.yaml
+  - otel-collector-config.yaml
 images:
   - name: mmmmnl/lobotomycorp
     newTag: v.1.1
