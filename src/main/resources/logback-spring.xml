@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration scan="true">
+
+    <springProperty scope="context"
+                    name="APP_NAME"
+                    source="spring.application.name"
+                    defaultValue="apartment-invoice" />
+    <springProperty scope="context"
+                    name="ROOT_LOG_LEVEL"
+                    source="logging.level.root"
+                    defaultValue="INFO" />
+    <springProperty scope="context"
+                    name="ACTIVE_PROFILE"
+                    source="spring.profiles.active"
+                    defaultValue="default" />
+
+    <appender name="JSON_CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="net.logstash.logback.encoder.LoggingEventCompositeJsonEncoder">
+            <providers>
+                <timestamp>
+                    <timeZone>UTC</timeZone>
+                </timestamp>
+                <logLevel />
+                <loggerName />
+                <threadName />
+                <message />
+                <arguments />
+                <callerData />
+                <stackTrace />
+                <mdc>
+                    <includeMdcKeyName>traceId</includeMdcKeyName>
+                    <includeMdcKeyName>spanId</includeMdcKeyName>
+                </mdc>
+                <provider class="net.logstash.logback.composite.GlobalCustomFieldsJsonProvider">
+                    <customFields>{"app":"${APP_NAME}","environment":"${ACTIVE_PROFILE}"}</customFields>
+                </provider>
+            </providers>
+        </encoder>
+    </appender>
+
+    <root level="${ROOT_LOG_LEVEL}">
+        <appender-ref ref="JSON_CONSOLE" />
+    </root>
+
+</configuration>

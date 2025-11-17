@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
+import io.micrometer.core.annotation.Timed;
+
 import com.devsop.project.apartmentinvoice.dto.BulkPrintRequest;
 import com.devsop.project.apartmentinvoice.dto.CreateInvoiceRequest;
 import com.devsop.project.apartmentinvoice.entity.Invoice;
@@ -48,6 +50,12 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/invoices") // ✅ ใช้สำหรับ REST APIs ทั้งหมด
 @RequiredArgsConstructor
+@Timed(
+  value = "invoice.api.latency",
+  description = "Latency of invoice REST endpoints",
+  histogram = true,
+  percentiles = {0.5, 0.95, 0.99}
+)
 public class InvoiceController {
 
   private final InvoiceRepository repo;
