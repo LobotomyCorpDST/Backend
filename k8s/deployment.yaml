@@ -53,6 +53,8 @@ spec:
               value: update
             - name: SPRING_JPA_PROPERTIES_HIBERNATE_ID_NEW_GENERATOR_MAPPINGS
               value: "false"
+            - name: OBSERVABILITY_OTEL_ENDPOINT 
+              value: http://otel-collector-svc.doomed-apt.svc.cluster.local:4318/v1/traces
           readinessProbe:
             httpGet:
               path: /api/health
