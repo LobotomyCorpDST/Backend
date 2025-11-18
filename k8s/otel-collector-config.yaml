@@ -13,7 +13,7 @@ data:
       batch:
     exporters:
       googlecloud:
-        project: 	doomapt-project
+        project: doomapt-project
         metric:
           enabled: false
     service:
