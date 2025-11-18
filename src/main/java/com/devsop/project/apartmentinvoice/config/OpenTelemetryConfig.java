@@ -7,12 +7,14 @@ import org.springframework.core.env.Environment;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.baggage.propagation.W3CBaggagePropagator;
+import io.opentelemetry.api.common.AttributeKey; // ✅ ถูกต้อง: ใช้ Manual Key
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.trace.propagation.W3CTraceContextPropagator;
 import io.opentelemetry.context.propagation.ContextPropagators;
 import io.opentelemetry.context.propagation.TextMapPropagator;
-import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporter;
-import io.opentelemetry.exporter.otlp.trace.OtlpGrpcSpanExporterBuilder;
+
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporter;
+import io.opentelemetry.exporter.otlp.http.trace.OtlpHttpSpanExporterBuilder;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.resources.Resource;
 import io.opentelemetry.sdk.trace.SdkTracerProvider;
@@ -23,11 +25,12 @@ import io.opentelemetry.sdk.trace.samplers.Sampler;
 public class OpenTelemetryConfig {
 
   @Bean(destroyMethod = "shutdown")
-  public OtlpGrpcSpanExporter otlpGrpcSpanExporter(
+  public OtlpHttpSpanExporter otlpHttpSpanExporter(
     @Value("${observability.otel.endpoint:http://otel-collector-svc.doomed-apt.svc.cluster.local:4318/v1/traces}") String endpoint,
     @Value("${observability.otel.headers:}") String headers
   ) {
-    OtlpGrpcSpanExporterBuilder builder = OtlpGrpcSpanExporter.builder()
+
+    OtlpHttpSpanExporterBuilder builder = OtlpHttpSpanExporter.builder() 
       .setEndpoint(endpoint);
 
     if (headers != null && !headers.isBlank()) {
@@ -45,7 +48,7 @@ public class OpenTelemetryConfig {
   @Bean(destroyMethod = "close")
   public SdkTracerProvider sdkTracerProvider(
       Environment environment,
-      OtlpGrpcSpanExporter spanExporter,
+      OtlpHttpSpanExporter spanExporter, // 👈 รับ Type เป็น Http
       @Value("${management.tracing.sampling.probability:1.0}") double samplingProbability
   ) {
     String appName = environment.getProperty("spring.application.name", "apartment-invoice");
@@ -53,8 +56,9 @@ public class OpenTelemetryConfig {
 
     Resource resource = Resource.getDefault().merge(Resource.create(
       Attributes.builder()
-        .put("service.name", appName)
-        .put("deployment.environment", profile)
+        // ✅ ส่วนนี้ถูกต้องแล้วครับ ใช้ Manual Key ป้องกัน Error library หาย
+        .put(AttributeKey.stringKey("service.name"), appName)
+        .put(AttributeKey.stringKey("deployment.environment"), profile)
         .build()
     ));
 
