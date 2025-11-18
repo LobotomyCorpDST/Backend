@@ -40,10 +40,13 @@ spec:
               cpu: "500m" 
             limits:
               memory: "2Gi"
-              cpu: "500m" 
+              cpu: "1000m" 
           env:
             - name: MYSQL_ROOT_PASSWORD
-              value: "admin123"
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-credentials
+                  key: password
             - name: MYSQL_DATABASE
               value: "apartment_db"
           volumeMounts:
