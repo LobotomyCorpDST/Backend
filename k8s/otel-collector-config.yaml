@@ -14,8 +14,6 @@ data:
     exporters:
       googlecloud:
         project: doomapt-project
-        metric:
-          enabled: false
     service:
       pipelines:
         traces:
