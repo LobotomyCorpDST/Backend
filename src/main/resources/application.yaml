@@ -9,13 +9,6 @@ spring:
       max-file-size: 10MB
       max-request-size: 10MB
 
-# ===== Storage configuration =====
-# Use local file system storage by default (for dev, mysql, docker profiles)
-# Override with storage.type: gcs for production
-storage:
-  type: local
-  local-path: /app/uploads
-
 management:
   endpoints:
     web:
@@ -85,11 +78,6 @@ spring:
     enabled: true
   thymeleaf:
     cache: false
-
-# Use Google Cloud Storage in production
-storage:
-  type: gcs
-
 server:
   port: 8080
 

@@ -155,21 +155,13 @@ public class CsvImportService {
       LocalDate issueDate = LocalDate.of(billingYear, billingMonth, 1);
       Lease lease = leaseRepository.findActiveLeaseByRoomOnDate(room.getId(), issueDate).orElse(null);
 
-      // Determine tenant: prioritize lease tenant, fallback to room tenant
-      // If room has no tenant at all, skip this invoice
-      var tenant = (lease != null) ? lease.getTenant() : room.getTenant();
-      if (tenant == null) {
-        recordImportError(result, lineNumber, "Room " + roomNumber + " has no tenant assigned");
-        return;
-      }
-
       // Calculate accumulated debt
       DebtCalculation debt = invoiceService.calculateAccumulatedDebt(room.getId(), billingYear, billingMonth);
 
       // Create invoice
       Invoice invoice = new Invoice();
       invoice.setRoom(room);
-      invoice.setTenant(tenant);
+      invoice.setTenant(lease != null ? lease.getTenant() : null); // Tenant optional if no lease
       invoice.setBillingYear(billingYear);
       invoice.setBillingMonth(billingMonth);
       invoice.setIssueDate(issueDate);

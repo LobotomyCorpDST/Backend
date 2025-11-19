@@ -1,10 +1,19 @@
 package com.devsop.project.apartmentinvoice.service;
 
+import com.google.cloud.storage.BlobId;
+import com.google.cloud.storage.BlobInfo;
+import com.google.cloud.storage.Storage;
+import com.google.cloud.storage.StorageOptions;
+
 import java.io.IOException;
+import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Collections;
 import java.util.UUID;
+import java.util.concurrent.TimeUnit;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
@@ -13,11 +22,9 @@ import org.springframework.web.server.ResponseStatusException;
 import com.devsop.project.apartmentinvoice.entity.Document;
 import com.devsop.project.apartmentinvoice.entity.Document.EntityType;
 import com.devsop.project.apartmentinvoice.repository.DocumentRepository;
-import com.devsop.project.apartmentinvoice.service.storage.StorageService;
 
 /**
- * Service for managing document uploads, downloads, and deletions.
- * Uses StorageService abstraction for pluggable storage backends (local or GCS).
+ * Service for managing document uploads, downloads, deletions, and signed URLs using GCS.
  */
 @Service
 public class DocumentService {
@@ -30,17 +37,19 @@ public class DocumentService {
       "application/pdf");
 
   private final DocumentRepository documentRepository;
-  private final StorageService storageService;
+  private final Storage storage;
+  private final String bucketName;
 
   public DocumentService(
       DocumentRepository documentRepository,
-      StorageService storageService) {
+      @Value("${gcs.bucket.name}") String bucketName) {
     this.documentRepository = documentRepository;
-    this.storageService = storageService;
+    this.bucketName = bucketName;
+    this.storage = StorageOptions.getDefaultInstance().getService();
   }
 
   /**
-   * Upload a file and create a Document record.
+   * Upload a file to GCS and create a Document record.
    */
   public Document uploadDocument(
       MultipartFile file,
@@ -76,18 +85,21 @@ public class DocumentService {
     }
 
     String uniqueFilename = UUID.randomUUID().toString() + extension;
-    String filePath = String.format("%s/%d/%s",
+    String gcsObjectName = String.format("%s/%d/%s",
         entityType.name().toLowerCase(), entityId, uniqueFilename);
 
     try {
-      // Upload file using storage service
-      storageService.uploadFile(file.getInputStream(), uniqueFilename, contentType, filePath);
+      BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, gcsObjectName))
+          .setContentType(contentType)
+          .build();
+
+      storage.createFrom(blobInfo, file.getInputStream());
 
       Document document = new Document();
       document.setEntityType(entityType);
       document.setEntityId(entityId);
       document.setFileName(originalFilename);
-      document.setFilePath(filePath);
+      document.setFilePath(gcsObjectName);
       document.setFileSize(file.getSize());
       document.setMimeType(contentType);
       document.setUploadedBy(uploadedBy);
@@ -96,13 +108,13 @@ public class DocumentService {
     } catch (IOException e) {
       throw new ResponseStatusException(
           HttpStatus.INTERNAL_SERVER_ERROR,
-          "Failed to upload file: " + e.getMessage(),
+          "Failed to upload file to GCS: " + e.getMessage(),
           e);
     }
   }
 
   /**
-   * Read file content from storage.
+   * Read file content from GCS.
    */
   public byte[] getFileContent(Long documentId) {
     Document document = documentRepository.findById(documentId)
@@ -110,7 +122,20 @@ public class DocumentService {
             HttpStatus.NOT_FOUND,
             "Document not found: " + documentId));
 
-    return storageService.downloadFile(document.getFilePath());
+    String gcsObjectName = document.getFilePath();
+    try {
+      BlobId blobId = BlobId.of(bucketName, gcsObjectName);
+      byte[] content = storage.readAllBytes(blobId);
+      if (content == null) {
+        throw new IOException("GCS object not found or empty.");
+      }
+      return content;
+    } catch (Exception e) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          "Failed to read file from GCS: " + e.getMessage(),
+          e);
+    }
   }
 
   /**
@@ -131,7 +156,34 @@ public class DocumentService {
   }
 
   /**
-   * Delete a document and its file from storage.
+   * Generate a short-lived signed URL for direct download from GCS.
+   */
+  public String generateSignedUrlForDownload(Long documentId) {
+    Document document = getDocumentById(documentId);
+    String gcsObjectName = document.getFilePath();
+    try {
+      // Build Content-Disposition for filename in browser download
+      String contentDisposition = "attachment; filename=\"" + document.getFileName() + "\"";
+
+      BlobInfo blobInfo = BlobInfo.newBuilder(BlobId.of(bucketName, gcsObjectName)).build();
+      URL signedUrl = storage.signUrl(
+          blobInfo,
+          10,
+          TimeUnit.MINUTES,
+          Storage.SignUrlOption.withV4Signature(),
+          Storage.SignUrlOption.withQueryParams(
+              Collections.singletonMap("response-content-disposition", contentDisposition)));
+      return signedUrl.toString();
+    } catch (Exception e) {
+      throw new ResponseStatusException(
+          HttpStatus.INTERNAL_SERVER_ERROR,
+          "Failed to generate signed URL: " + e.getMessage(),
+          e);
+    }
+  }
+
+  /**
+   * Delete a document and its file from GCS.
    */
   public void deleteDocument(Long documentId) {
     Document document = documentRepository.findById(documentId)
@@ -139,10 +191,15 @@ public class DocumentService {
             HttpStatus.NOT_FOUND,
             "Document not found: " + documentId));
 
+    String gcsObjectName = document.getFilePath();
+    BlobId blobId = BlobId.of(bucketName, gcsObjectName);
     try {
-      storageService.deleteFile(document.getFilePath());
+      boolean deleted = storage.delete(blobId);
+      if (!deleted) {
+        System.err.println("Warning: GCS Object not found or deletion failed for: " + gcsObjectName);
+      }
     } catch (Exception e) {
-      System.err.println("Warning: Failed to delete file from storage: " + e.getMessage());
+      System.err.println("Warning: Failed to delete GCS object: " + e.getMessage());
     }
 
     documentRepository.deleteById(documentId);
