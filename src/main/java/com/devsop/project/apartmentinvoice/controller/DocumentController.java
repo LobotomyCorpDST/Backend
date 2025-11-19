@@ -3,6 +3,7 @@ package com.devsop.project.apartmentinvoice.controller;
 import java.security.Principal;
 import java.util.List;
 
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -91,19 +92,24 @@ public class DocumentController {
   }
 
   /**
-   * [ปรับปรุง] Download by redirecting to a GCS Signed URL.
+   * Download a document file.
+   * Returns the file content directly instead of using signed URLs.
    */
   @GetMapping("/{id}/download")
-  public ResponseEntity<Void> downloadDocument(@PathVariable Long id) {
+  public ResponseEntity<byte[]> downloadDocument(@PathVariable Long id) {
     Document document = documentService.getDocumentById(id);
-    String signedUrl = documentService.generateSignedUrlForDownload(id);
+    byte[] fileContent = documentService.getFileContent(id);
 
     HttpHeaders headers = new HttpHeaders();
-    headers.setLocation(java.net.URI.create(signedUrl));
-    headers.add(HttpHeaders.CONTENT_DISPOSITION,
-        "attachment; filename=\"" + document.getFileName() + "\"");
+    headers.setContentType(MediaType.parseMediaType(document.getMimeType()));
+    headers.setContentDisposition(
+        ContentDisposition.attachment()
+            .filename(document.getFileName())
+            .build()
+    );
+    headers.setContentLength(fileContent.length);
 
-    return new ResponseEntity<>(headers, HttpStatus.FOUND);
+    return new ResponseEntity<>(fileContent, headers, HttpStatus.OK);
   }
 
   /**
