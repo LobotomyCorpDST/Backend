@@ -29,7 +29,7 @@ spec:
       containers:
         - name: backend
           image: mmmmnl/lobotomycorp:local
-          imagePullPolicy: Never
+          imagePullPolicy: Always
           ports:
             - containerPort: 8080
               name: http
