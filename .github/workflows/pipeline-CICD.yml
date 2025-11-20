@@ -26,13 +26,15 @@ jobs:
       uses: actions/checkout@v4
       
     - name: '🐳 Build the Docker image'
-      run: docker build --file Dockerfile -t ${{ env.IMAGE_NAME }}:${{ github.sha }} .
+      run: docker build --file Dockerfile -t ${{ env.IMAGE_NAME }}:${{ github.sha }} -t ${{ env.IMAGE_NAME }}:latest .
 
     - name: '🔑 Docker Hub Login'
       run: docker login -u ${{ secrets.DOCKERHUB_USERNAME }} -p ${{ secrets.DOCKERHUB_TOKEN }}
       
     - name: '📤 Push Docker Image'
-      run: docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+      run: |
+        docker push ${{ env.IMAGE_NAME }}:${{ github.sha }}
+        docker push ${{ env.IMAGE_NAME }}:latest
 
     - name: '🔐 Authenticate to GCP (WIF)'
       uses: google-github-actions/auth@v2
