@@ -47,7 +47,7 @@ public class SecurityConfig {
                 .requestMatchers(HttpMethod.POST, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF", "ROLE_USER", "USER")
                 .requestMatchers(HttpMethod.PUT, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
                 .requestMatchers(HttpMethod.PATCH, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
-                .requestMatchers(HttpMethod.DELETE, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN")
+                .requestMatchers(HttpMethod.DELETE, "/api/maintenance/**").hasAnyAuthority("ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
                 .requestMatchers(HttpMethod.GET, "/api/**").hasAnyAuthority("ROLE_GUEST", "GUEST", "ROLE_USER", "USER", "ROLE_ADMIN", "ADMIN", "ROLE_STAFF", "STAFF")
 
                 // Allow STAFF to upload documents (for maintenance image uploads)
