@@ -176,7 +176,8 @@ public class LeaseService {
     if (patch.getCustomRules() != null)     l.setCustomRules(patch.getCustomRules());
     if (patch.getSettled() != null)         l.setSettled(patch.getSettled());
     if (patch.getSettledDate() != null)     l.setSettledDate(patch.getSettledDate());
-
+    if (patch.getStatus() != null)          l.setStatus(patch.getStatus());
+    
     // เปลี่ยนผู้เช่า
     if (patch.getTenant() != null && patch.getTenant().getId() != null) {
       Tenant t = tenantRepo.findById(patch.getTenant().getId())
